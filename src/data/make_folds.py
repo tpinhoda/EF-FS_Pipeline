@@ -18,20 +18,6 @@ def create_folder(path, folder_name):
         logger.info('Folder already exist.')
     return path
 
-def create_type_fold_folder(output_filepath, type_folds, n_neighbors):
-    if type_folds == 'R':
-        output_filepath = create_folder(output_filepath, 'Regions')
-    elif type_folds == 'S':
-        output_filepath = create_folder(output_filepath, 'States')
-    elif type_folds == 'D':
-        output_filepath = create_folder(output_filepath, 'Districts')
-    elif type_folds == 'SD':
-        output_filepath = create_folder(output_filepath, 'Sub-Districs')
-    elif type_folds == 'CN':
-        output_filepath = create_folder(output_filepath, 'Changing_Neighborhood')
-        output_filepath = create_folder(output_filepath, n_neighbors)
-        
-
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -40,7 +26,7 @@ if __name__ == '__main__':
     # Project path
     project_dir = str(Path(__file__).resolve().parents[2])
     # Find data.env automatically by walking up directories until it's found
-    dotenv_path = find_dotenv(filename='mk_folds_parameters.env')
+    dotenv_path = find_dotenv(filename=join('parameters','make_folds.env'))
     # Load up the entries as environment variables
     load_dotenv(dotenv_path)
     # Set paths
