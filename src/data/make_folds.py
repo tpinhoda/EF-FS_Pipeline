@@ -1,27 +1,19 @@
 # -*- coding: utf-8 -*-
-import logging
+import coloredlogs,  logging
+coloredlogs.install()
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
 from pathlib import Path
-from os import environ, mkdir
+from os import environ
 from os.path import join
 from dotenv import find_dotenv, load_dotenv
 
+from src.utils import utils
 generate_geo_groups_folds = __import__('1_generate_gg_folds')
 generate_changing_neighbors_folds = __import__('2_generate_cn_folds')
 
 
-def create_folder(path, folder_name):
-    logger = logging.getLogger(__name__)
-    path = join(path, folder_name)
-    try:
-        mkdir(path)
-    except FileExistsError:
-        logger.info('Folder already exist.')
-    return path
-
-
 if __name__ == '__main__':
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger(__name__)
     # Project path
     project_dir = str(Path(__file__).resolve().parents[2])
@@ -55,7 +47,7 @@ if __name__ == '__main__':
     
     dataset_fold_name = region +'_'+ aggr +'_'+ tse_year + tse_turn + tse_office + tse_per +'_'+ ibge_year +'_'+ idhm_year
     logger.info('Creating dataset folder.')
-    output_filepath = create_folder(output_filepath, dataset_fold_name)
+    output_filepath = utils.create_folder(output_filepath, dataset_fold_name)
     if type_folds == 'CN':
         generate_changing_neighbors_folds.run(input_filepath,
                                               meshblock_filepath,

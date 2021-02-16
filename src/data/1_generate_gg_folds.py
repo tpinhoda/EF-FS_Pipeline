@@ -1,22 +1,16 @@
 # -*- coding: utf-8 -*-
+import coloredlogs,  logging
+coloredlogs.install()
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
 import warnings
-import logging
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from os import mkdir
 from os.path import join
 from tqdm import tqdm
+from src.utils import utils
 warnings.filterwarnings('ignore')
-
-def create_folder(path, folder_name):
-    logger = logging.getLogger(__name__)
-    path = join(path, folder_name)
-    try:
-        mkdir(path)
-    except FileExistsError:
-        logger.info('Folder already exist.')
-    return path   
 
 def neighbors_to_remove(spatial_attr, area, indexes, matrix, data):
     area_matrix = matrix.loc[indexes]
@@ -27,27 +21,6 @@ def neighbors_to_remove(spatial_attr, area, indexes, matrix, data):
     to_remove = neighbors_data[neighbors_data[spatial_attr] != area].index
     return to_remove
 
-def get_geo_attribute(type_folds):
-    logger = logging.getLogger(__name__)
-    if type_folds == 'R':
-        geo_group = 'GEO_Cod_Grande_Regiao'
-    elif type_folds == 'S':
-        geo_group = 'GEO_Nome_UF'
-    elif type_folds == 'ME':
-        geo_group = 'GEO_Cod_Meso'
-    elif type_folds == 'MI':
-        geo_group = 'GEO_Cod_Micro'
-    elif type_folds == 'D':
-        geo_group = 'GEO_Cod_Distrito'
-    elif type_folds == 'SD':
-        geo_group = 'GEO_Cod_Subdistruto'
-    else:
-        geo_group = None
-        logger.info('Incorrect type fold option try: [R, S, ME, MI, D, SD, CN]')
-        exit()
-    return geo_group
-
- 
 def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix_filepath, type_folds):
     logger = logging.getLogger(__name__)
     adj_m_queen = pd.read_csv(queen_matrix_filepath)
@@ -55,15 +28,15 @@ def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix
     data = pd.read_csv(input_filepath)
     data.set_index(data.columns[0], inplace=True)
     
-    geo_group = get_geo_attribute(type_folds)
+    geo_group = utils.get_geo_attribute(type_folds)
     
     logger.info('Generating spatial folds by: {}'.format(geo_group))
     name_fold = geo_group.split('_')[-1]
-    output_filepath = create_folder(output_filepath, name_fold)
-    fold_output_filepath = create_folder(output_filepath, 'folds')
+    output_filepath = utils.create_folder(output_filepath, name_fold)
+    fold_output_filepath = utils.create_folder(output_filepath, 'folds')
     for key, test_data in tqdm(data.groupby(by=geo_group)):
         if len(test_data) >= 1:
-            fold_path = create_folder(fold_output_filepath, str(key).lower())
+            fold_path = utils.create_folder(fold_output_filepath, str(key).lower())
             train_data = data.copy()
             
             train_data.drop(test_data.index, inplace=True)
@@ -90,7 +63,7 @@ def plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_fo
     meshblock[index_name] = meshblock[index_name].astype('int64')
     data[index_name] = data[index_name].astype('int64')
     
-    geo_attr = get_geo_attribute(type_folds)
+    geo_attr = utils.get_geo_attribute(type_folds)
     name_fold = geo_attr.split('_')[-1]
     logger.info('Plotting spatial folds by: {}'.format(geo_attr))
     
@@ -103,7 +76,5 @@ def plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_fo
 
 def run(input_filepath, meshblock_filepath, output_filepath, type_folds, queen_matrix_filepath):
     # Log text to show on screen
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
     output_filepath = make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix_filepath, type_folds)
     plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_folds)

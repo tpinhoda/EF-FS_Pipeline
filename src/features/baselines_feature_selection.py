@@ -82,7 +82,7 @@ def weka_methods(data_path, results_path, n_features, target_col):
     x_fs['target'] = data[target_col]
     x_fs = create_instances_from_matrices(x_fs.to_numpy())
     x_fs.class_is_last()
-    for method in ['csf', 'rrelieff']:
+    for method in ['cfs', 'rrelieff']:
         if method == 'rrelieff':
             logger.info('Selecting {} features based on {}.'.format(n_features, method))
             search = ASSearch(classname="weka.attributeSelection.Ranker", options=[
