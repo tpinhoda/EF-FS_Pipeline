@@ -1,3 +1,18 @@
+def shap_plot(model, x, y_true, fold):
+    shap.initjs()
+    #f = plt.figure()
+    y_pred = pd.DataFrame(model.predict(x))
+    explainerModel = shap.KernelExplainer(model.predict, x)
+    shap_values_Model = explainerModel.shap_values(x)
+    #print(shap_values_Model)
+    j = y_true.idxmax(axis=0)
+    #shap.force_plot(explainerModel.expected_value, shap_values_Model[0][j], x.iloc[[j]], matplotlib=True)
+    shap.summary_plot(shap_values_Model, x)
+    #f.savefig(join('reports', 'figures', '{}_fold.pdf'.format(str(fold))), bbox_inches='tight', dpi=600)
+    #plt.savefig()
+    return 0
+
+
 def residual_plot(model, x, y_true, sae, wkendall, meshblock):
     y_pred = model.predict(x)
     y_pred = pd.Series(y_pred, index=x.index, name='y_pred')
@@ -63,3 +78,6 @@ def residual_plot(model, x, y_true, sae, wkendall, meshblock):
     
     #fig.tight_layout()
     pp.savefig()
+    
+    pp = PdfPages(join(results_path, method_folder+'_residual_maps', '{}.pdf'.format(file_features.split('.')[0])))
+    pp.close()
