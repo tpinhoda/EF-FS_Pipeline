@@ -46,7 +46,7 @@ if __name__ == '__main__':
     models_path = utils.create_folder(output_path, 'models_trained')
     
     
-    #make_train.run(folds_filepath, exp_filepath, models_path, scv_model_name, target_col)
+    make_train.run(folds_filepath, exp_filepath, models_path, scv_model_name, target_col)
     results_by_folds = utils.create_folder(output_path, 'by_folds')
     make_prediction.run(folds_filepath, models_path, exp_filepath, results_by_folds, target_col)
     
