@@ -113,10 +113,10 @@ def run(folds_results_path, plots_path):
     logger.info('Calculating mean results.')
     overall_results = generate_overall_results(folds_results_path, fs_methods)
     overall_results.set_index('method', inplace=True, drop=False)
-    metrics = ['n_features', 'sae', 'rmse', 'kendall', 'spearmanr', 'wkendall']
+    metrics = ['n_features', 'sae', 'rmse', 'kendall', 'spearmanr', 'wkendall', 'hit_center', 'rank_dist_center']
     pdf_pages = PdfPages(join(plots_path, 'mean_results.pdf'))
     generate_bar_plots(overall_results, metrics, pdf_pages)
-    metrics = ['sae', 'rmse', 'kendall', 'spearmanr', 'wkendall']
+    metrics = ['sae', 'rmse', 'kendall', 'spearmanr', 'wkendall', 'hit_center', 'rank_dist_center']
     generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages)
     pdf_pages.close()
     

@@ -16,6 +16,9 @@ from tqdm import tqdm
 from matplotlib.backends.backend_pdf import PdfPages
 from src.utils import utils
 
+plt.rc('legend',fontsize=4)
+plt.rc('figure',max_open_warning=100)
+
 
 def load_model(filepath):
     return pickle.load(open(filepath, 'rb'))
@@ -53,7 +56,7 @@ def create_index_col_meshblock(meshblock, index_col):
     return new_meshblock, key
 
 
-def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, sae=0, kendall=0):
+def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, move_legend=False, sae=0, kendall=0):
     ax[row][col].set_title(title)
     ax[row][col].set_xticks([]) 
     ax[row][col].set_yticks([])
@@ -64,12 +67,17 @@ def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, sae=0,
         # these are matplotlib.patch.Patch properties
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.2)
         # place a text box in upper left in axes coords
-        ax[row][col].text(0.05, 0.95, textstr, transform=ax[row][col].transAxes, fontsize=7,
-            verticalalignment='top', bbox=props)  
+        ax[row][col].text(0.05, 0.95, textstr, transform=
+                          ax[row][col].transAxes, fontsize=7,
+            verticalalignment='top', bbox=props)
     map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap)
+
+       # legend = handles=ax[row][col].get_legend()
+       # handles = [] if legend is None else legend.legendHandles
+       # plt.legend(handles=handles, title='title', bbox_to_anchor=(1.05, 1), loc='upper left')
     
     
-def generate_map_plot(fold_name, model, x, y_true, meshblock, index_col, target_col, pdf_pages):
+def generate_map_plot(fold_name, model, x, y_true, meshblock, who_won, index_col, target_col, vote_shares, candidate, pdf_pages):
     # Making predictions
     y_pred = model.predict(x)
     y_pred = pd.Series(y_pred, index=x.index, name='y_pred')
@@ -81,25 +89,47 @@ def generate_map_plot(fold_name, model, x, y_true, meshblock, index_col, target_
     # Adding y and rank to the meshblock
     true_map = merge_meshblock_results(map_data, y_true, rank_true, key)
     pred_map = merge_meshblock_results(map_data, y_pred, rank_pred, key)
+    # Adding who won and vote shares to meshblock 
+    win_map = map_data.merge(who_won, on=key, how='left')
+    win_map.dropna(axis=0, inplace=True)
+    # Adding voteshares to meshblock
+    vote_map = map_data.merge(vote_shares, on=key, how='left')
+    vote_map.dropna(axis=0, inplace=True)
     # Calculate text metrics
     sae = calculate_sae(model, x,y_true)
     kendall = calculate_kendall(model, x,y_true)
-    fig, ax = plt.subplots(2, 2)
+    fig, ax = plt.subplots(3, 2)
     fig.suptitle('Fold: {}'.format(fold_name), fontsize=16)
     cmap = 'autumn'
     plot_map(true_map, ax, 0, 0, target_col, 'True Distribution', cmap)
-    plot_map(pred_map, ax, 0, 1, 'y_pred', 'Predicted Distribution', cmap, True, sae, kendall)
+    plot_map(pred_map, ax, 0, 1, 'y_pred', 'Predicted Distribution', cmap, text=True, sae=sae, kendall=kendall)
     cmap = 'RdYlBu'
     plot_map(true_map, ax, 1, 0, 'rank_true', 'True Rank', cmap)
     plot_map(pred_map, ax, 1, 1, 'rank_pred', 'Predicted Rank', cmap)
-    pdf_pages.savefig()
+    cmap='Paired'
+    plot_map(win_map, ax, 2, 0, 'ELECTION_who_won', 'Win Map', cmap, move_legend=True)
+    cmap='autumn'
+    plot_map(vote_map, ax, 2, 1, candidate, candidate, cmap, move_legend=True)
+    pdf_pages.savefig(bbox_inches="tight")
+    plt.close('all')
     
 def make_data(fold_path, target_col, filename):
     data = pd.read_csv(join(fold_path, filename), index_col='GEO_Cod_Municipio', low_memory=False)
     x, y = utils.split_data(data, target_col)
     return x, y
 
-def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath, target_col, index_col):
+def get_vote_shares(data, candidate):
+    if candidate == "HADDAD":
+        candidate_col = 'ELECTION_FERNANDO HADDAD'
+    else:
+        candidate_col = 'ELECTION_JAIR BOLSONARO'
+    
+    data[candidate_col+'(%)'] = data[candidate_col] / data['ELECTION_QT_COMPARECIMENTO']
+    return candidate_col+'(%)', data[candidate_col+'(%)']
+       
+    
+
+def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath, target_col, index_col, center_candidate):
     logger = logging.getLogger(__name__)
     fs_methods = [method for method in listdir(models_path)]
     folds_names = [fold_name for fold_name in listdir(folds_filepath)]
@@ -111,8 +141,11 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath
         for fold_name in tqdm(folds_names):
             model = load_model(join(models_path, fs_method, fold_name  + '.sav'))
             x_test, y_test = make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
+            who_won = x_test['ELECTION_who_won']
+            candidate, candidate_vote_shares = get_vote_shares(x_test.copy(), center_candidate)
             x_test = utils.filter_by_selected_features(x_test, selected_features)
-            generate_map_plot(fold_name, model, x_test, y_test, meshblock,  index_col, target_col, pdf_pages)
+            generate_map_plot(fold_name, model, x_test, y_test, meshblock, who_won, index_col, target_col, candidate_vote_shares, candidate, pdf_pages)
         pdf_pages.close()
+        
         
     

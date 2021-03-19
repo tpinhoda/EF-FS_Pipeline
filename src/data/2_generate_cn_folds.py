@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
+import logging
 import warnings
 import pandas as pd
 import geopandas as gpd
@@ -76,14 +73,16 @@ def make_folds_by_changing_neighborhood(input_filepath, queen_matrix_filepath, m
     adj_m_bipartite = generate_bipartite_matrix(data, adj_m_queen, center_candidate, n_neighbors)
 
     if filter_train == 'True':
-        data = filter_data(data, adj_m_bipartite,  output_filepath)
-        
+        data = filter_data(data, adj_m_bipartite,  output_filepath)   
     fold_output_filepath = utils.create_folder(output_filepath, 'folds')    
     for center_city_idx, row in tqdm(adj_m_bipartite.iterrows(), total=len(adj_m_bipartite)):
         test_idx =  row >= 1
         test_idx = test_idx[test_idx].index.values.tolist()
         test_idx.append(str(center_city_idx))
         test_data = data.loc[test_idx,]
+        #Generete column to know the center
+        test_data['center_neighbor'] = ['neighbor'] * len(test_data)
+        test_data.loc[str(center_city_idx), 'center_neighbor'] = 'center'
         
         fold_path = utils.create_folder(fold_output_filepath, str(center_city_idx).lower())
         train_data = data.copy()

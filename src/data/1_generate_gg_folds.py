@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
+import logging
 import warnings
 import pandas as pd
 import geopandas as gpd

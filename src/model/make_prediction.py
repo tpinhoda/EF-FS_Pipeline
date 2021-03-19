@@ -1,9 +1,5 @@
 
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
-
+import logging
 import pandas as pd
 import pickle
 from os import listdir
@@ -11,7 +7,7 @@ from os.path import join
 from tqdm import tqdm
 from src.utils import utils
 from sklearn.metrics import mean_squared_error
-from scipy.stats import weightedtau, kendalltau, spearmanr
+from scipy.stats import weightedtau, kendalltau, spearmanr, rankdata
 
 def create_eval_dict():
     eval_dict = {'fold_name': [],
@@ -22,6 +18,8 @@ def create_eval_dict():
                  'kendall': [],
                  'wkendall': [],
                  'spearmanr': [],
+                 'hit_center': [],
+                 'rank_dist_center': [],
                  }
     return eval_dict
 
@@ -57,13 +55,36 @@ def calculate_spearman(model, x, y_true):
     return ro
 
 
+def check_center_neighbor(model, x, y_true, center_neighbor):
+    y_pred = model.predict(x)
+    rank_pred = pd.Series(rankdata(y_pred, method='ordinal'), index=x.index, name='rank_pred')
+    rank_true = pd.Series(rankdata(y_true, method='ordinal'), index=x.index, name='rank_true')
+    center = [local_idx for local_idx in center_neighbor.index if center_neighbor[local_idx] == 'center']
+    if rank_pred[center[0]] == rank_true[center[0]]:
+        return 1
+    else:
+        return 0
+
+def calculate_rank_dist_center(model, x, y_true, center_neighbor):
+    y_pred = model.predict(x)
+    rank_pred = pd.Series(rankdata(y_pred, method='ordinal'), index=x.index, name='rank_pred')
+    rank_true = pd.Series(rankdata(y_true, method='ordinal'), index=x.index, name='rank_true')
+    center = [local_idx for local_idx in center_neighbor.index if center_neighbor[local_idx] == 'center']
+    return abs(rank_true[center[0]] - rank_pred[center[0]])
+    
+    
+
 def model_predict(folds_filepath, folds_names, models_path,  output_path, fs_method, selected_features, target_col):
     metrics = create_eval_dict()
     for fold_name in tqdm(folds_names, desc='Predicting folds:', position=0, leave=False):
+        
         x_test, y_test = utils.make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
+        center_neighbor = x_test['center_neighbor']
+        
         x_test = utils.filter_by_selected_features(x_test, selected_features)
         model = load_model(join(models_path, fs_method, fold_name + '.sav'))
 
+        
         metrics['fold_name'].append(fold_name)
         metrics['size'].append(len(y_test))
         metrics['n_features'].append(len(selected_features))
@@ -72,6 +93,8 @@ def model_predict(folds_filepath, folds_names, models_path,  output_path, fs_met
         metrics['kendall'].append(calculate_kendall(model, x_test, y_test))
         metrics['wkendall'].append(calculate_wkendall(model, x_test, y_test))
         metrics['spearmanr'].append(calculate_spearman(model, x_test, y_test))
+        metrics['hit_center'].append(check_center_neighbor(model, x_test, y_test, center_neighbor))
+        metrics['rank_dist_center'].append(calculate_rank_dist_center(model, x_test, y_test, center_neighbor))
         
     metrics = pd.DataFrame(metrics)
     metrics.to_csv(join(output_path, fs_method +'.csv'), index=False)

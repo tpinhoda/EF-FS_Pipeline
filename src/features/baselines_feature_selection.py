@@ -38,7 +38,7 @@ def select_all_features(data_path, results_path):
         json.dump(json_features, fp, indent=4)
 
 
-def select_random_features(data_path, results_path, perc):
+def select_random_features_perc(data_path, results_path, perc):
     data = pd.read_csv(data_path, low_memory=False)
     x = get_descriptive_attributes(data)
     features = x.columns.values.tolist()
@@ -46,6 +46,16 @@ def select_random_features(data_path, results_path, perc):
     features = random.sample(features, k=k)
     json_features = {'selected_features': features}
     with open(join(results_path, 'random_{}%.json'.format(str(perc))), "w") as fp:
+        json.dump(json_features, fp, indent=4)
+
+
+def select_random_features_number(data_path, results_path, n_features):
+    data = pd.read_csv(data_path, low_memory=False)
+    x = get_descriptive_attributes(data)
+    features = x.columns.values.tolist()
+    features = random.sample(features, k=n_features)
+    json_features = {'selected_features': features}
+    with open(join(results_path, 'n_rand.json'), "w") as fp:
         json.dump(json_features, fp, indent=4)
 
 
@@ -175,9 +185,12 @@ if __name__ == '__main__':
     logger.info('Selecting all features.')
     select_all_features(input_filepath, output_filepath)
     logger.info('Selecting {}% random features.'.format(str(random_perc)))
-    select_random_features(input_filepath, output_filepath, random_perc)
+    select_random_features_perc(input_filepath, output_filepath, random_perc)
     logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
     n_features = weka_methods(input_filepath, output_filepath, n_features, target_col)
     logger.info('Selecting features based on filtering: [pearson, kendall, spearman].')
     filtering_method(input_filepath, output_filepath, n_features, target_col)
+    logger.info('Selecting {} random features.'.format(str(n_features)))
+    select_random_features_number(input_filepath, output_filepath, n_features)
+    
     

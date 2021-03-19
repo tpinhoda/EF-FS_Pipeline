@@ -47,6 +47,6 @@ if __name__ == '__main__':
     
     make_overall_plot.run(results_by_folds, plots_path)
     map_plots_path = utils.create_folder(plots_path, 'map_plots')
-    make_map_plot.run(folds_filepath, models_path, exp_filepath, map_plots_path, meshblocks_filepath, target_col, index_col)
-    shap_plots_path = utils.create_folder(plots_path, 'shap_plots')
-    make_shap_plot.run(folds_filepath, models_path, exp_filepath, shap_plots_path, target_col, index_col)
+    make_map_plot.run(folds_filepath, models_path, exp_filepath, map_plots_path, meshblocks_filepath, target_col, index_col, center_candidate)
+    #shap_plots_path = utils.create_folder(plots_path, 'shap_plots')
+    #make_shap_plot.run(folds_filepath, models_path, exp_filepath, shap_plots_path, target_col, index_col)
