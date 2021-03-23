@@ -47,10 +47,11 @@ def filter_data(data, adj_m_bipartite, output_filepath):
         
 
 def make_folds_by_changing_neighborhood(input_filepath, queen_matrix_filepath, meshblock_filepath, output_filepath, type_folds, center_candidate, n_neighbors, filter_train):
-    logger = logging.getLogger(__name__)
+    logger_name ='Spatial Folds'
+    logger = logging.getLogger(logger_name)
     logger.info('Generating Changing Neighborhood folds')
-    output_filepath = utils.create_folder(output_filepath, 'Changing_Neighborhood')
-    output_filepath = utils.create_folder(output_filepath, center_candidate+'_N'+str(n_neighbors)+'_FT_'+filter_train)
+    output_filepath = utils.create_folder(output_filepath, 'Changing_Neighborhood', logger_name)
+    output_filepath = utils.create_folder(output_filepath, center_candidate+'_N'+str(n_neighbors)+'_FT_'+filter_train, logger_name)
     
     data = pd.read_csv(input_filepath)
     adj_m_queen = pd.read_csv(queen_matrix_filepath)
@@ -74,8 +75,8 @@ def make_folds_by_changing_neighborhood(input_filepath, queen_matrix_filepath, m
 
     if filter_train == 'True':
         data = filter_data(data, adj_m_bipartite,  output_filepath)   
-    fold_output_filepath = utils.create_folder(output_filepath, 'folds')    
-    for center_city_idx, row in tqdm(adj_m_bipartite.iterrows(), total=len(adj_m_bipartite)):
+    fold_output_filepath = utils.create_folder(output_filepath, 'folds', logger_name)    
+    for center_city_idx, row in tqdm(adj_m_bipartite.iterrows(), total=len(adj_m_bipartite), desc='Creating spatial folds:', leave=False):
         test_idx =  row >= 1
         test_idx = test_idx[test_idx].index.values.tolist()
         test_idx.append(str(center_city_idx))
@@ -84,7 +85,7 @@ def make_folds_by_changing_neighborhood(input_filepath, queen_matrix_filepath, m
         test_data['center_neighbor'] = ['neighbor'] * len(test_data)
         test_data.loc[str(center_city_idx), 'center_neighbor'] = 'center'
         
-        fold_path = utils.create_folder(fold_output_filepath, str(center_city_idx).lower())
+        fold_path = utils.create_folder(fold_output_filepath, str(center_city_idx).lower(), logger_name, show_msg=False)
         train_data = data.copy()
             
         train_data.drop(test_data.index, inplace=True)

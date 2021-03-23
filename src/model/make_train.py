@@ -3,7 +3,6 @@ import random
 import pickle
 from os import environ, listdir
 from os.path import join
-from dotenv import find_dotenv, load_dotenv
 from tqdm import tqdm
 from src.utils import utils
 
@@ -24,7 +23,7 @@ def save_model(model, path, filename):
 
 
 def train_model(folds_filepath, folds_names, model, features_selected, target_col, output_path):
-    for fold in tqdm(folds_names, desc='Creating trained models by folds:'):
+    for fold in tqdm(folds_names, desc='Creating trained models by folds:', leave=False):
         x_train, y_train = utils.make_data(join(folds_filepath, fold), target_col, 'train.csv')
         x_train = utils.filter_by_selected_features(x_train, features_selected)
         model.fit(x_train, y_train)
@@ -34,7 +33,8 @@ def train_model(folds_filepath, folds_names, model, features_selected, target_co
            
 
 def run(folds_filepath, exp_filepath, output_path, model_name, target_col):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Evaluation'
+    logger = logging.getLogger(logger_name)
     
     folds_names = [fold for fold in listdir(folds_filepath)]
     fs_methods = [method for method in listdir(join(exp_filepath, 'features_selected'))]
@@ -42,7 +42,7 @@ def run(folds_filepath, exp_filepath, output_path, model_name, target_col):
     for fs_method in fs_methods:
         logger.info('Creating {} models for: {}'.format(model_name, fs_method))
         selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method))
-        fs_method_output_path = utils.create_folder(output_path, fs_method.split('.')[0])
+        fs_method_output_path = utils.create_folder(output_path, fs_method.split('.')[0], logger_name)
         train_model(folds_filepath, folds_names, model, selected_features, target_col, fs_method_output_path)
   
        

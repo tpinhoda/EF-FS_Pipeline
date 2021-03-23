@@ -1,8 +1,4 @@
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
-
+import logging
 import pandas as pd
 import json
 import random
@@ -15,6 +11,8 @@ from scipy.stats import weightedtau
 import weka.core.jvm as jvm
 from weka.attribute_selection import ASEvaluation, ASSearch, AttributeSelection
 from weka.core.dataset import create_instances_from_matrices
+
+from src.utils import utils
 
 def get_descriptive_attributes(data):
     census_cols = [c for c in data.columns if 'CENSUS' in c]
@@ -83,8 +81,10 @@ def filtering_method(data_path, results_path, n_features, target_col):
 
 
 def weka_methods(data_path, results_path, n_features, target_col):
-    logger = logging.getLogger(__name__)
-    logger.info('Starting JVM, some warnings may appear.')
+    logger_name = 'FS Baselines'
+    logger = logging.getLogger(logger_name)
+    logger.info('Starting JVM.')
+    logger.warning('Some warnings may appear.')
     jvm.start()
     data = pd.read_csv(data_path, low_memory=False)
     x = get_descriptive_attributes(data)
@@ -139,58 +139,53 @@ def get_folder_name(type_folds, output_filepath):
         exit()
     return output_filepath
 
-def create_folder(path, folder_name):
-    logger = logging.getLogger(__name__)
-    path = join(path, folder_name)
-    try:
-        mkdir(path)
-        logger.info('Creating Folder: {}'.format(folder_name))
-    except FileExistsError:
-        logger.info('Entenring Folder: {}'.format(folder_name))
-    return path
+def run(run_fs_baselines, ds_fold):
+    logger_name = 'FS Baselines'
+    logger = logging.getLogger(logger_name)
+    if run_fs_baselines == 'True':
+        # Find data.env automatically by walking up directories until it's found
+        dotenv_path = find_dotenv(filename=join('parameters','feature_selection.env'))
+        # Load up the entries as environment variables
+        load_dotenv(dotenv_path)
+        # Get dataset parameter
+        input_filepath = environ.get('INPUT_DATASET')
+        output_filepath = environ.get('OUTPUT_PATH')
+        output_filepath = join(output_filepath,ds_fold)
+        # Get data fold parameters
+        type_folds = environ.get('TYPE_FOLDS')
+        target_col = environ.get('TARGET')
+        n_features = int(environ.get('FILTERING_N_FEATURES'))
+        random_perc = int(environ.get('RANDOM_PERC'))
+        output_filepath = get_folder_name(type_folds, output_filepath)
+        if type_folds == 'CN':
+            n_neighbors = environ.get('C_N_NEIGHBORS')
+            filter_train = environ.get('FILTER_TRAIN')
+            center_candidate = environ.get('CENTER_CANDIDATE')
+            folder_name = center_candidate + '_' + 'N'+n_neighbors+'_FT_'+filter_train
+            output_filepath = join(output_filepath, folder_name)
+            if filter_train == 'True':
+                input_filepath = join(output_filepath, 'filtered_data.csv')
 
-if __name__ == '__main__':
-    logger = logging.getLogger(__name__)
-    # Find data.env automatically by walking up directories until it's found
-    dotenv_path = find_dotenv(filename=join('parameters','feature_selection.env'))
-    # Load up the entries as environment variables
-    load_dotenv(dotenv_path)
-    # Get dataset parameter
-    input_filepath = environ.get('INPUT_DATASET')
-    output_filepath = environ.get('OUTPUT_PATH')
-    # Get data fold parameters
-    type_folds = environ.get('TYPE_FOLDS')
-    target_col = environ.get('TARGET')
-    n_features = int(environ.get('FILTERING_N_FEATURES'))
-    random_perc = int(environ.get('RANDOM_PERC'))
-    output_filepath = get_folder_name(type_folds, output_filepath)
-    if type_folds == 'CN':
-        n_neighbors = environ.get('C_N_NEIGHBORS')
-        filter_train = environ.get('FILTER_TRAIN')
-        center_candidate = environ.get('CENTER_CANDIDATE')
-        folder_name = center_candidate + '_' + 'N'+n_neighbors+'_FT_'+filter_train
-        output_filepath = join(output_filepath, folder_name)
-        if filter_train == 'True':
-            input_filepath = join(output_filepath, 'filtered_data.csv')
+        output_filepath = utils.create_folder(output_filepath, 'experiments', logger_name)
+        if n_features == -1:
+            output_filepath = utils.create_folder(output_filepath, 'TG_{}_FN_CFS_RP_{}'.format(target_col, str(random_perc)), logger_name)
+        else:
+            output_filepath = utils.create_folder(output_filepath, 'TG_{}_FN_{}_RP_{}'.format(target_col, str(n_features), str(random_perc)),logger_name)
+        output_filepath = utils.create_folder(output_filepath, 'features_selected', logger_name)
+        # =============================================
 
-    output_filepath = create_folder(output_filepath, 'experiments')
-    if n_features == -1:
-        output_filepath = create_folder(output_filepath, 'TG_{}_FN_CFS_RP_{}'.format(target_col, str(random_perc)))
+
+        logger.info('Selecting all features.')
+        select_all_features(input_filepath, output_filepath)
+        logger.info('Selecting {}% random features.'.format(str(random_perc)))
+        select_random_features_perc(input_filepath, output_filepath, random_perc)
+        logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
+        n_features = weka_methods(input_filepath, output_filepath, n_features, target_col)
+        logger.info('Selecting features based on filtering: [pearson, kendall, spearman].')
+        filtering_method(input_filepath, output_filepath, n_features, target_col)
+        logger.info('Selecting {} random features.'.format(str(n_features)))
+        select_random_features_number(input_filepath, output_filepath, n_features)
     else:
-        output_filepath = create_folder(output_filepath, 'TG_{}_FN_{}_RP_{}'.format(target_col, str(n_features), str(random_perc)))
-    output_filepath = create_folder(output_filepath, 'features_selected')
-    # =============================================
-
-
-    logger.info('Selecting all features.')
-    select_all_features(input_filepath, output_filepath)
-    logger.info('Selecting {}% random features.'.format(str(random_perc)))
-    select_random_features_perc(input_filepath, output_filepath, random_perc)
-    logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
-    n_features = weka_methods(input_filepath, output_filepath, n_features, target_col)
-    logger.info('Selecting features based on filtering: [pearson, kendall, spearman].')
-    filtering_method(input_filepath, output_filepath, n_features, target_col)
-    logger.info('Selecting {} random features.'.format(str(n_features)))
-    select_random_features_number(input_filepath, output_filepath, n_features)
-    
+        logger.warning('Not running feature selection baselines.')
+        
     

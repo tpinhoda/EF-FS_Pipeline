@@ -1,9 +1,5 @@
 from src.model.make_prediction import calculate_rmse
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
-
+import logging
 import pickle
 import pandas as pd
 import geopandas as gpd
@@ -130,7 +126,8 @@ def get_vote_shares(data, candidate):
     
 
 def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath, target_col, index_col, center_candidate):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Visualization'
+    logger = logging.getLogger(logger_name)
     fs_methods = [method for method in listdir(models_path)]
     folds_names = [fold_name for fold_name in listdir(folds_filepath)]
     logger.info('Generating Map Plots.')
@@ -138,7 +135,7 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath
     for fs_method in fs_methods:
         selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
         pdf_pages = PdfPages(join(map_plots, fs_method + '.pdf'))
-        for fold_name in tqdm(folds_names):
+        for fold_name in tqdm(folds_names, desc='Plotting maps', leave=False):
             model = load_model(join(models_path, fs_method, fold_name  + '.sav'))
             x_test, y_test = make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
             who_won = x_test['ELECTION_who_won']

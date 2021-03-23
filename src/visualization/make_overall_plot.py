@@ -1,8 +1,4 @@
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
-
+import logging
 import scikit_posthocs as sp
 import pandas as pd
 import seaborn as sns
@@ -49,7 +45,8 @@ def get_baselines_results(overall_results, metric, baseline_name, topline_name):
       
             
 def generate_bar_plots(overall_results, metrics, pdf_pages):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Visualization'
+    logger = logging.getLogger(logger_name)
     baseline_name = [fs_method for fs_method  in overall_results['method'] if 'random' in fs_method][0]
     topline_name = 'all_features'
     for metric in metrics:
@@ -88,7 +85,8 @@ def generate_bar_plots(overall_results, metrics, pdf_pages):
         
 
 def generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Visualization'
+    logger = logging.getLogger(logger_name)
     for metric in metrics:
         logger.info('Generating posthoc plot for {}'.format(metric))
         metric_results = get_all_metric_results(folds_results_path, fs_methods, metric)
@@ -108,7 +106,8 @@ def generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages)
         
 
 def run(folds_results_path, plots_path):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Visualization'
+    logger = logging.getLogger(logger_name)
     fs_methods = [method for method in listdir(folds_results_path)]
     logger.info('Calculating mean results.')
     overall_results = generate_overall_results(folds_results_path, fs_methods)

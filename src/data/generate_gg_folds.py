@@ -19,21 +19,22 @@ def neighbors_to_remove(spatial_attr, area, indexes, matrix, data):
     return to_remove
 
 def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix_filepath, type_folds):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Spatial Folds'
+    logger = logging.getLogger(logger_name)
     adj_m_queen = pd.read_csv(queen_matrix_filepath)
     adj_m_queen.set_index(adj_m_queen.columns[0], inplace=True)
     data = pd.read_csv(input_filepath)
     data.set_index(data.columns[0], inplace=True)
     
-    geo_group = utils.get_geo_attribute(type_folds)
+    geo_group = utils.get_geo_attribute(type_folds, logger_name)
     
     logger.info('Generating spatial folds by: {}'.format(geo_group))
     name_fold = geo_group.split('_')[-1]
-    output_filepath = utils.create_folder(output_filepath, name_fold)
-    fold_output_filepath = utils.create_folder(output_filepath, 'folds')
-    for key, test_data in tqdm(data.groupby(by=geo_group)):
+    output_filepath = utils.create_folder(output_filepath, name_fold, logger_name)
+    fold_output_filepath = utils.create_folder(output_filepath, 'folds', logger_name)
+    for key, test_data in tqdm(data.groupby(by=geo_group), desc='Creating spatial folds', leave=False):
         if len(test_data) >= 1:
-            fold_path = utils.create_folder(fold_output_filepath, str(key).lower())
+            fold_path = utils.create_folder(fold_output_filepath, str(key).lower(), logger_name, show_msg=False)
             train_data = data.copy()
             
             train_data.drop(test_data.index, inplace=True)
@@ -46,7 +47,8 @@ def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix
             
 
 def plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_folds):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Spatial Folds'
+    logger = logging.getLogger(logger_name)
     meshblock = gpd.read_file(meshblock_filepath)
     data = pd.read_csv(input_filepath) 
     index_name = data.columns[0]
@@ -60,7 +62,7 @@ def plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_fo
     meshblock[index_name] = meshblock[index_name].astype('int64')
     data[index_name] = data[index_name].astype('int64')
     
-    geo_attr = utils.get_geo_attribute(type_folds)
+    geo_attr = utils.get_geo_attribute(type_folds, logger_name)
     name_fold = geo_attr.split('_')[-1]
     logger.info('Plotting spatial folds by: {}'.format(geo_attr))
     

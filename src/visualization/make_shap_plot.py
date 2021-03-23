@@ -1,8 +1,4 @@
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
-
+import logging
 import pickle
 import shap
 import pandas as pd
@@ -52,15 +48,16 @@ def make_data(fold_path, target_col, filename):
     return x, y
 
 def run(folds_filepath, models_path, exp_filepath, map_plots, target_col, index_col):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Visualization'
+    logger = logging.getLogger(logger_name)
     fs_methods = [method for method in listdir(models_path)]
     folds_names = [fold_name for fold_name in listdir(folds_filepath)]
     logger.info('Generating Map Plots.')
     for fs_method in fs_methods:
         selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
         #pdf_pages = PdfPages(join(map_plots, fs_method + '.pdf'))
-        plot_path = utils.create_folder(map_plots, fs_method)
-        for fold_name in tqdm(folds_names):
+        plot_path = utils.create_folder(map_plots, fs_method, logger_name)
+        for fold_name in tqdm(folds_names, desc='Generating shap plots', leave=False):
             model = load_model(join(models_path, fs_method, fold_name  + '.sav'))
             x_test, y_test = make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
             center_neighbor = x_test['center_neighbor']

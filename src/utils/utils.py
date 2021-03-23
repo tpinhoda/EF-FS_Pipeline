@@ -8,19 +8,23 @@ from sklearn.linear_model import LinearRegression
 
 
 
-def create_folder(path, folder_name):
-    logger = logging.getLogger(__name__)
+def create_folder(path, folder_name, logger_name, show_msg=True):
+    logger = logging.getLogger(logger_name)
     path = join(path, folder_name)
-    logger.info('Creating folder: {}'.format(folder_name))
+    if show_msg:
+        logger.info('Creating folder: {}'.format(folder_name))
     try:
         mkdir(path)
     except FileExistsError:
-        logger.info('Folder already exist: {}'.format(folder_name))
+        if show_msg:
+            logger.info('Folder already exist: {}'.format(folder_name))
+        else:
+            pass
     return path
 
 
-def get_fold_type_folder_path(type_folds, root_filepath):
-    logger = logging.getLogger(__name__)
+def get_fold_type_folder_path(type_folds, root_filepath, logger_name):
+    logger = logging.getLogger(logger_name)
     if type_folds == 'R':
         root_filepath = join(root_filepath, 'Regiao')
     elif type_folds == 'S':
@@ -37,13 +41,13 @@ def get_fold_type_folder_path(type_folds, root_filepath):
         root_filepath = join(root_filepath, 'Changing_Neighborhood')
     else:
         root_filepath = None
-        logger.info('Incorrect type fold option try: [R, S, ME, MI, D, SD, CN]')
+        logger.error('Incorrect type fold option try: [R, S, ME, MI, D, SD, CN]')
         exit()
     return root_filepath
 
 
-def get_geo_attribute(type_folds):
-    logger = logging.getLogger(__name__)
+def get_geo_attribute(type_folds, logger_name):
+    logger = logging.getLogger(logger_name)
     if type_folds == 'R':
         geo_group = 'GEO_Cod_Grande_Regiao'
     elif type_folds == 'S':

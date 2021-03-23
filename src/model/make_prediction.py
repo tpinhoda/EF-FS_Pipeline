@@ -104,7 +104,8 @@ def load_model(filepath):
     return pickle.load(open(filepath, 'rb'))
    
 def run(folds_filepath, models_path, exp_filepath,  output_path, target_col):
-    logger = logging.getLogger(__name__)
+    logger_name = 'Evaluation'
+    logger = logging.getLogger(logger_name)
     fs_methods = [fs_method for fs_method in listdir(models_path)]
     folds_names = [fold_name for fold_name in listdir(folds_filepath)]
     for fs_method in fs_methods:

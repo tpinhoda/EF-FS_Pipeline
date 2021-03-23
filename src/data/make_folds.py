@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-import coloredlogs,  logging
-coloredlogs.install()
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
+import logging
 from pathlib import Path
 from os import environ
 from os.path import join
 from dotenv import find_dotenv, load_dotenv
 
 from src.utils import utils
-generate_geo_groups_folds = __import__('1_generate_gg_folds')
-generate_changing_neighbors_folds = __import__('2_generate_cn_folds')
+from src.data import generate_gg_folds as generate_geo_groups_folds 
+from src.data import generate_cn_folds as generate_changing_neighbors_folds
+
+#generate_geo_groups_folds = __import__('1_generate_gg_folds')
+#generate_changing_neighbors_folds = __import__('2_generate_cn_folds')
 
 
-if __name__ == '__main__':
-    logger = logging.getLogger(__name__)
+def run(run_make_folds):
+    logger_name = 'Spatial Folds'
+    logger = logging.getLogger(logger_name)
     # Project path
     project_dir = str(Path(__file__).resolve().parents[2])
     # Find data.env automatically by walking up directories until it's found
@@ -34,34 +35,37 @@ if __name__ == '__main__':
     # Input dataset details
     region = environ.get('REGION_NAME')
     aggr = environ.get('AGGR_LEVEL')
-    
+        
     tse_year = 'E' + environ.get('ELECTION_YEAR')
     tse_office = environ.get('POLITICAL_OFFICE')
     tse_turn = 't' + str(environ.get('ELECTION_TURN'))
     tse_per = 'PER' + environ.get('PER')
     tse_candidates = environ.get('CANDIDATES').split(',')
-    
+        
     ibge_year = 'C' + environ.get('CENSUS_YEAR')
     idhm_year = 'I' + environ.get('IDHM_YEAR')
-    
-    
+        
+        
     dataset_fold_name = region +'_'+ aggr +'_'+ tse_year + tse_turn + tse_office + tse_per +'_'+ ibge_year +'_'+ idhm_year
-    logger.info('Creating dataset folder.')
-    output_filepath = utils.create_folder(output_filepath, dataset_fold_name)
-    if type_folds == 'CN':
-        generate_changing_neighbors_folds.run(input_filepath,
-                                              meshblock_filepath,
-                                              output_filepath,
-                                              type_folds,
-                                              queen_matrix_filepath,
-                                              n_neighbors,
-                                              center_candidate,
-                                              filter_train)
+    if run_make_folds == 'True':
+        logger.info('Creating dataset folder.')
+        output_filepath = utils.create_folder(output_filepath, dataset_fold_name, logger_name)
+        if type_folds == 'CN':
+            generate_changing_neighbors_folds.run(input_filepath,
+                                                meshblock_filepath,
+                                                output_filepath,
+                                                type_folds,
+                                                queen_matrix_filepath,
+                                                n_neighbors,
+                                                center_candidate,
+                                                filter_train)
+        else:
+            generate_geo_groups_folds.run(input_filepath,
+                                        meshblock_filepath,
+                                        output_filepath,
+                                        type_folds,
+                                        queen_matrix_filepath)
     else:
-        generate_geo_groups_folds.run(input_filepath,
-                                      meshblock_filepath,
-                                      output_filepath,
-                                      type_folds,
-                                      queen_matrix_filepath)
-    
+        logger.warning('Not creating spatial folds.')
+    return(dataset_fold_name)
 
