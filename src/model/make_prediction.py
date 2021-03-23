@@ -79,7 +79,8 @@ def model_predict(folds_filepath, folds_names, models_path,  output_path, fs_met
     for fold_name in tqdm(folds_names, desc='Predicting folds:', position=0, leave=False):
         
         x_test, y_test = utils.make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
-        center_neighbor = x_test['center_neighbor']
+        if 'Changing_Neighborhood' in output_path:
+            center_neighbor = x_test['center_neighbor']
         
         x_test = utils.filter_by_selected_features(x_test, selected_features)
         model = load_model(join(models_path, fs_method, fold_name + '.sav'))
@@ -93,8 +94,13 @@ def model_predict(folds_filepath, folds_names, models_path,  output_path, fs_met
         metrics['kendall'].append(calculate_kendall(model, x_test, y_test))
         metrics['wkendall'].append(calculate_wkendall(model, x_test, y_test))
         metrics['spearmanr'].append(calculate_spearman(model, x_test, y_test))
-        metrics['hit_center'].append(check_center_neighbor(model, x_test, y_test, center_neighbor))
-        metrics['rank_dist_center'].append(calculate_rank_dist_center(model, x_test, y_test, center_neighbor))
+        if 'Changing_Neighborhood' in output_path:
+            metrics['hit_center'].append(check_center_neighbor(model, x_test, y_test, center_neighbor))
+            metrics['rank_dist_center'].append(calculate_rank_dist_center(model, x_test, y_test, center_neighbor))
+        else:
+            metrics['hit_center'].append(0)
+            metrics['rank_dist_center'].append(0)
+            
         
     metrics = pd.DataFrame(metrics)
     metrics.to_csv(join(output_path, fs_method +'.csv'), index=False)

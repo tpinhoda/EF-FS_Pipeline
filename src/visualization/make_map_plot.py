@@ -133,6 +133,7 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath
     logger.info('Generating Map Plots.')
     meshblock = gpd.read_file(meshblock_filepath)
     for fs_method in fs_methods:
+        logger.info('Generating for: {}'.format(fs_method))
         selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
         pdf_pages = PdfPages(join(map_plots, fs_method + '.pdf'))
         for fold_name in tqdm(folds_names, desc='Plotting maps', leave=False):

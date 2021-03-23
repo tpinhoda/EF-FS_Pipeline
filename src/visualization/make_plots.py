@@ -21,6 +21,7 @@ def run(run_general_maps, run_map_plots, run_shap_plots, ds_fold):
     target_col = environ.get('TARGET')
     n_features = environ.get('FILTERING_N_FEATURES')
     random_perc = environ.get('RANDOM_PERC')
+    center_candidate = environ.get('CENTER_CANDIDATE')
     # Get Spatial cross validation parameters
     scv_model_name = environ.get('MODEL_NAME')
     # Get Dataset parameters
@@ -30,7 +31,6 @@ def run(run_general_maps, run_map_plots, run_shap_plots, ds_fold):
     if type_folds == 'CN':
         n_neighbors = environ.get('C_N_NEIGHBORS')
         filter_train = environ.get('FILTER_TRAIN')
-        center_candidate = environ.get('CENTER_CANDIDATE')
         folder_name = center_candidate + '_' + 'N'+n_neighbors+'_FT_'+filter_train
         exp_filepath = join(exp_filepath, folder_name)
         
