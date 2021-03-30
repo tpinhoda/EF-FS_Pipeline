@@ -16,7 +16,7 @@ def run(run_train, run_prediction, ds_folds):
     type_folds = environ.get('TYPE_FOLDS')
     target_col = environ.get('TARGET')
     n_features = environ.get('FILTERING_N_FEATURES')
-    random_perc = environ.get('RANDOM_PERC')
+    independent = environ.get('INDEPENDENT')
     # Get Spatial cross validation parameters
     scv_model_name = environ.get('MODEL_NAME')
     
@@ -32,9 +32,9 @@ def run(run_train, run_prediction, ds_folds):
     if run_train == 'True':
         exp_filepath = utils.create_folder(exp_filepath, 'experiments', logger_name)
         if n_features == '-1':
-            exp_filepath = utils.create_folder(exp_filepath,'TG_{}_FN_{}_RP_{}'.format(target_col, 'CFS', random_perc), logger_name)
+            exp_filepath = utils.create_folder(exp_filepath,'TG_{}_FN_{}_IND_{}'.format(target_col, 'CFS', independent), logger_name)
         else:
-            exp_filepath = utils.create_folder(exp_filepath,'TG_{}_FN_{}_RP_{}'.format(target_col, n_features, random_perc), logger_name)
+            exp_filepath = utils.create_folder(exp_filepath,'TG_{}_FN_{}_IND_{}'.format(target_col, n_features, independent), logger_name)
         
         output_path = utils.create_folder(exp_filepath, 'results', logger_name)
         output_path = utils.create_folder(output_path, scv_model_name, logger_name)

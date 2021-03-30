@@ -9,7 +9,7 @@ from os.path import join
 from dotenv import find_dotenv, load_dotenv
 
 from src.data import make_folds
-from src.features import baselines_feature_selection
+from src.features import make_feature_selection
 from src.model import make_evaluation
 from src.visualization import make_plots
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     run_shap_plots = environ.get('RUN_SHAP_PLOTS')
     #
     ds_fold = make_folds.run(run_make_folds)
-    baselines_feature_selection.run(run_fs_baselines, ds_fold)
+    make_feature_selection.run(run_fs_baselines, ds_fold)
     make_evaluation.run(run_model_train, run_model_predict, ds_fold)
     make_plots.run(run_general_plots, run_map_plots, run_shap_plots, ds_fold)
     

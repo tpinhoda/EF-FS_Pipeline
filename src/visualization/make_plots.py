@@ -20,7 +20,7 @@ def run(run_general_maps, run_map_plots, run_shap_plots, ds_fold):
     type_folds = environ.get('TYPE_FOLDS')
     target_col = environ.get('TARGET')
     n_features = environ.get('FILTERING_N_FEATURES')
-    random_perc = environ.get('RANDOM_PERC')
+    independent = environ.get('INDEPENDENT')
     center_candidate = environ.get('CENTER_CANDIDATE')
     # Get Spatial cross validation parameters
     scv_model_name = environ.get('MODEL_NAME')
@@ -38,9 +38,9 @@ def run(run_general_maps, run_map_plots, run_shap_plots, ds_fold):
     folds_filepath = join(exp_filepath, 'folds')
     exp_filepath = join(exp_filepath, 'experiments')
     if n_features == '-1':
-        exp_filepath = join(exp_filepath,'TG_{}_FN_{}_RP_{}'.format(target_col, 'CFS', random_perc))
+        exp_filepath = join(exp_filepath,'TG_{}_FN_{}_IND_{}'.format(target_col, 'CFS', independent))
     else:
-        exp_filepath = join(exp_filepath,'TG_{}_FN_{}_RP_{}'.format(target_col, n_features, random_perc))
+        exp_filepath = join(exp_filepath,'TG_{}_FN_{}_IND_{}'.format(target_col, n_features, independent))
     
     results_path = join(exp_filepath, 'results', scv_model_name)
     models_path = join(results_path, 'models_trained')
