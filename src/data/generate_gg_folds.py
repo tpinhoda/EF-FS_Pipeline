@@ -25,7 +25,6 @@ def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix
     adj_m_queen.set_index(adj_m_queen.columns[0], inplace=True)
     data = pd.read_csv(input_filepath)
     data.set_index(data.columns[0], inplace=True)
-    
     geo_group = utils.get_geo_attribute(type_folds, logger_name)
     
     logger.info('Generating spatial folds by: {}'.format(geo_group))

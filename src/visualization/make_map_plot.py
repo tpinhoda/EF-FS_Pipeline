@@ -2,6 +2,7 @@ from src.model.make_prediction import calculate_rmse
 import logging
 import pickle
 import pandas as pd
+import numpy as np
 import geopandas as gpd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -66,7 +67,12 @@ def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, move_l
         ax[row][col].text(0.05, 0.95, textstr, transform=
                           ax[row][col].transAxes, fontsize=7,
             verticalalignment='top', bbox=props)
-    map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap)
+    if 'Distribution' in title:
+        map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap, vmin=0, vmax=100)
+    if 'Rank' in title:
+        map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap)
+    if 'Win' in title:
+        map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap)
 
        # legend = handles=ax[row][col].get_legend()
        # handles = [] if legend is None else legend.legendHandles
@@ -86,8 +92,12 @@ def generate_map_plot(fold_name, model, x, y_true, meshblock, who_won, index_col
     true_map = merge_meshblock_results(map_data, y_true, rank_true, key)
     pred_map = merge_meshblock_results(map_data, y_pred, rank_pred, key)
     # Adding who won and vote shares to meshblock 
-    win_map = map_data.merge(who_won, on=key, how='left')
-    win_map.dropna(axis=0, inplace=True)
+    true_win_map = map_data.merge(who_won, on=key, how='left')
+    true_win_map.dropna(axis=0, inplace=True)
+    pred_map['won_pred'] = np.where(pred_map['y_pred'] < 50, 'Lost', 'Win')
+    win_lost_type = pd.CategoricalDtype(categories=['Win', 'Lost'], ordered=False)
+    pred_map['won_pred'] = pred_map['won_pred'].astype(win_lost_type)
+    
     # Adding voteshares to meshblock
     vote_map = map_data.merge(vote_shares, on=key, how='left')
     vote_map.dropna(axis=0, inplace=True)
@@ -96,16 +106,16 @@ def generate_map_plot(fold_name, model, x, y_true, meshblock, who_won, index_col
     kendall = calculate_kendall(model, x,y_true)
     fig, ax = plt.subplots(3, 2)
     fig.suptitle('Fold: {}'.format(fold_name), fontsize=16)
-    cmap = 'autumn'
+    cmap = 'YlOrRd'
     plot_map(true_map, ax, 0, 0, target_col, 'True Distribution', cmap)
     plot_map(pred_map, ax, 0, 1, 'y_pred', 'Predicted Distribution', cmap, text=True, sae=sae, kendall=kendall)
     cmap = 'RdYlBu'
     plot_map(true_map, ax, 1, 0, 'rank_true', 'True Rank', cmap)
     plot_map(pred_map, ax, 1, 1, 'rank_pred', 'Predicted Rank', cmap)
     cmap='Paired'
-    plot_map(win_map, ax, 2, 0, 'ELECTION_who_won', 'Win Map', cmap, move_legend=True)
-    cmap='autumn'
-    plot_map(vote_map, ax, 2, 1, candidate, candidate, cmap, move_legend=True)
+    plot_map(true_win_map, ax, 2, 0, 'ELECTION_who_won', 'True Win Map', cmap, move_legend=True)
+    cmap='Paired'
+    plot_map(pred_map, ax, 2, 1, 'won_pred', 'Predicted Win Map', cmap, move_legend=True)
     pdf_pages.savefig(bbox_inches="tight")
     plt.close('all')
     
@@ -139,10 +149,12 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath
         for fold_name in tqdm(folds_names, desc='Plotting maps', leave=False):
             model = load_model(join(models_path, fs_method, fold_name  + '.sav'))
             x_test, y_test = make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
-            who_won = x_test['ELECTION_who_won']
-            candidate, candidate_vote_shares = get_vote_shares(x_test.copy(), center_candidate)
+            who_won = pd.Series(np.where(x_test['ELECTION_who_won'] == center_candidate, 'Win', 'Lost'), index=x_test.index, name='ELECTION_who_won')
+            win_lost_type = pd.CategoricalDtype(categories=['Win', 'Lost'], ordered=False)
+            who_won = who_won.astype(win_lost_type)
+            _, candidate_vote_shares = get_vote_shares(x_test.copy(), center_candidate)
             x_test = utils.filter_by_selected_features(x_test, selected_features)
-            generate_map_plot(fold_name, model, x_test, y_test, meshblock, who_won, index_col, target_col, candidate_vote_shares, candidate, pdf_pages)
+            generate_map_plot(fold_name, model, x_test, y_test, meshblock, who_won, index_col, target_col, candidate_vote_shares, center_candidate, pdf_pages)
         pdf_pages.close()
         
         

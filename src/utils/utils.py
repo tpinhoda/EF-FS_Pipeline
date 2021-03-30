@@ -95,3 +95,15 @@ def make_data(fold_path, target_col, filename):
 
 def filter_by_selected_features(data, feature_selected):
     return data[feature_selected].copy()
+
+def get_descriptive_attributes(data):
+    census_cols = [c for c in data.columns if 'CENSUS' in c]
+    idhm_cols = [c for c in data.columns if 'IDHM' in c]
+    elections_cols = [c for c in data.columns if 'ELECTION' in c]
+    
+    elections_in_cols = [c for c in elections_cols if 'BOLSONARO' not in c]
+    elections_in_cols = [c for c in elections_in_cols if 'HADDAD' not in c]
+    elections_in_cols = [c for c in elections_in_cols if 'who_won' not in c]
+    
+    input_space = census_cols + idhm_cols + elections_in_cols
+    return data[input_space]

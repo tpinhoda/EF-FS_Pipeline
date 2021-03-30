@@ -33,11 +33,21 @@ def get_all_metric_results(path, file_results, metric):
 
 
 def get_baselines_results(overall_results, metric, baseline_name, topline_name):
-    topline_results = [overall_results.loc[topline_name, metric]] * int(len(overall_results) -2)
-    baseline_results = [overall_results.loc[baseline_name, metric]] * int(len(overall_results) -2)
-            
-    hue_topline = ['ALL'] * len(topline_results)
-    hue_baseline = ['Random'] * len(baseline_results)
+    
+
+    baseline_results = []
+    hue_baseline = []
+    size_line = len(overall_results) - len(baseline_name) - 1
+    for method in baseline_name:
+        results = [overall_results.loc[method, metric]] * size_line
+        baseline_results = baseline_results + results
+        hue = [method] * len(results)
+        hue_baseline = hue_baseline + hue
+        
+    
+    topline_results = [overall_results.loc[topline_name[0], metric]] * size_line 
+    hue_topline = topline_name * len(topline_results)
+
             
     lines_results = topline_results + baseline_results
     lines_hue = hue_topline + hue_baseline
@@ -47,11 +57,11 @@ def get_baselines_results(overall_results, metric, baseline_name, topline_name):
 def generate_bar_plots(overall_results, metrics, pdf_pages):
     logger_name = 'Visualization'
     logger = logging.getLogger(logger_name)
-    baseline_name = [fs_method for fs_method  in overall_results['method'] if 'random' in fs_method][0]
-    topline_name = 'all_features'
+    baseline_name = [method for method in overall_results.index if 'worst' in method]
+    topline_name = ['topline']
     for metric in metrics:
         logger.info('Generating bar plot for {}'.format(metric))
-        no_baselines_results = overall_results.drop(['all_features', 'random_50%'])
+        no_baselines_results = overall_results.drop(topline_name + baseline_name)
         fig, ax = plt.subplots(1, 1, figsize=(10, 5))
         plt.xticks(fontsize=9)
         ax.set_title(metric.upper())
@@ -70,7 +80,9 @@ def generate_bar_plots(overall_results, metrics, pdf_pages):
                            textcoords='offset points')
             
         lines_results, lines_hue = get_baselines_results(overall_results, metric, baseline_name, topline_name)
-        x_methods = no_baselines_results['method'].values.tolist() + no_baselines_results['method'].values.tolist()
+        x_methods = []
+        for _ in baseline_name + topline_name:
+            x_methods = x_methods + no_baselines_results['method'].values.tolist()
         sns.lineplot(y=lines_results,
                      x=x_methods, 
                      hue=lines_hue,
@@ -112,10 +124,14 @@ def run(folds_results_path, plots_path):
     logger.info('Calculating mean results.')
     overall_results = generate_overall_results(folds_results_path, fs_methods)
     overall_results.set_index('method', inplace=True, drop=False)
-    metrics = ['n_features', 'sae', 'rmse', 'kendall', 'spearmanr', 'wkendall', 'hit_center', 'rank_dist_center']
+    metrics = ['n_features', 'sae', 'rmse', 
+               'kendall', 'spearmanr', 'wkendall', 
+               'fscore', 'win_fscore', 'lost_fscore', 
+               'accuracy', 'win_precision', 'lost_precision',
+               'win_recall', 'lost_recall', 'hit_center', 'rank_dist_center']
     pdf_pages = PdfPages(join(plots_path, 'mean_results.pdf'))
     generate_bar_plots(overall_results, metrics, pdf_pages)
-    metrics = ['sae', 'rmse', 'kendall', 'spearmanr', 'wkendall', 'hit_center', 'rank_dist_center']
+    metrics.remove('n_features')
     generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages)
     pdf_pages.close()
     

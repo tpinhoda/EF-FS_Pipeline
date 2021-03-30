@@ -1,8 +1,9 @@
 import logging
 import pandas as pd
+import numpy as np
 import json
 import random
-from os import environ, mkdir
+from os import environ
 from os.path import join
 from dotenv import find_dotenv, load_dotenv
 from tqdm import tqdm
@@ -12,33 +13,43 @@ import weka.core.jvm as jvm
 from weka.attribute_selection import ASEvaluation, ASSearch, AttributeSelection
 from weka.core.dataset import create_instances_from_matrices
 
-from src.utils import utils
+from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
 
-def get_descriptive_attributes(data):
-    census_cols = [c for c in data.columns if 'CENSUS' in c]
-    idhm_cols = [c for c in data.columns if 'IDHM' in c]
-    elections_cols = [c for c in data.columns if 'ELECTION' in c]
-    
-    elections_in_cols = [c for c in elections_cols if 'BOLSONARO' not in c]
-    elections_in_cols = [c for c in elections_in_cols if 'HADDAD' not in c]
-    elections_in_cols = [c for c in elections_in_cols if 'who_won' not in c]
-    
-    input_space = census_cols + idhm_cols + elections_in_cols
-    return data[input_space]
+from src.utils import utils
 
 
 def select_all_features(data_path, results_path):
     data = pd.read_csv(data_path, low_memory=False)
-    x  = get_descriptive_attributes(data)
+    x  = utils.get_descriptive_attributes(data)
     features = x.columns.values.tolist()
     json_features = {'selected_features': features}
-    with open(join(results_path, 'all_features.json'), "w") as fp:
+    with open(join(results_path, 'topline.json'), "w") as fp:
         json.dump(json_features, fp, indent=4)
 
 
+def select_worst_case_sklearn(data_path, results_path, n_features, target_col):
+    logger_name = 'FS Baselines'
+    logger = logging.getLogger(logger_name)
+    data = pd.read_csv(data_path, low_memory=False)
+    x = utils.get_descriptive_attributes(data)
+    y = data[target_col]
+    for method in ['regression', 'mi']:
+        logger.info('Selecting {} worst features based on {}.'.format(n_features, method))
+        if method == 'regression':
+            fs = SelectKBest(score_func=f_regression, k='all')
+        if method == 'mutual_information':
+            fs = SelectKBest(score_func=mutual_info_regression, k='all')
+        fs.fit(x, y)
+        worst_idx = np.argsort(fs.scores_)[:n_features-1]
+        features = x.columns[worst_idx].values.tolist()
+        json_features = {'selected_features': features}
+        with open(join(results_path, 'worst_{}.json'.format(method)), "w") as fp:
+            json.dump(json_features, fp, indent=4)
+        
+
 def select_random_features_perc(data_path, results_path, perc):
     data = pd.read_csv(data_path, low_memory=False)
-    x = get_descriptive_attributes(data)
+    x = utils.get_descriptive_attributes(data)
     features = x.columns.values.tolist()
     k = int(perc*len(features)/100)
     features = random.sample(features, k=k)
@@ -49,7 +60,7 @@ def select_random_features_perc(data_path, results_path, perc):
 
 def select_random_features_number(data_path, results_path, n_features):
     data = pd.read_csv(data_path, low_memory=False)
-    x = get_descriptive_attributes(data)
+    x = utils.get_descriptive_attributes(data)
     features = x.columns.values.tolist()
     features = random.sample(features, k=n_features)
     json_features = {'selected_features': features}
@@ -57,28 +68,56 @@ def select_random_features_number(data_path, results_path, n_features):
         json.dump(json_features, fp, indent=4)
 
 
-def filtering_method(data_path, results_path, n_features, target_col):
-    logger = logging.getLogger(__name__)
+def correlation_methods(data_path, results_path, n_features, target_col, worst=False):
+    logger_name = 'FS Baselines'
+    logger = logging.getLogger(logger_name)
     
     def wkendall(x, y):
         tau, _ = weightedtau(x, y)
         return tau
 
     data = pd.read_csv(data_path, low_memory=False)
-    x = get_descriptive_attributes(data)
+    x = utils.get_descriptive_attributes(data)
     y = data[target_col]
-    for method in ['pearson', 'kendall', 'spearman', 'wkendall']:
+    for method in ['pearson', 'kendall', 'spearman']:
         logger.info('Selecting {} features based on {}.'.format(n_features, method))
         if method != 'wkendall':
             cor = x.corrwith(y, axis=0, method=method)
         else:
             cor = x.corrwith(y, axis=0, method=wkendall)
         # Selecting highly correlated features
-        features = cor.nlargest(n_features).index.values.tolist()
+        if worst:
+            cor = cor.abs()
+            features = cor.nsmallest(n_features).index.values.tolist()
+            json_features = {'selected_features': features}
+            with open(join(results_path, 'worst_{}.json'.format(method)), "w") as fp:
+                json.dump(json_features, fp, indent=4)
+        else:    
+            features = cor.nlargest(n_features).index.values.tolist()
+            json_features = {'selected_features': features}
+            with open(join(results_path, '{}.json'.format(method)), "w") as fp:
+                json.dump(json_features, fp, indent=4)
+
+
+def sklearn_methods(data_path, results_path, n_features, target_col, worst=False):
+    logger_name = 'FS Baselines'
+    logger = logging.getLogger(logger_name)
+    data = pd.read_csv(data_path, low_memory=False)
+    x = utils.get_descriptive_attributes(data)
+    y = data[target_col]
+    for method in ['regression', 'mi']:
+        logger.info('Selecting {} features based on {}.'.format(n_features, method))
+        if method == 'regression':
+            fs = SelectKBest(score_func=f_regression, k=n_features)
+        if method == 'mutual_information':
+            fs = SelectKBest(score_func=mutual_info_regression, k=n_features)
+        fs.fit(x, y)
+        cols = fs.get_support(indices=True)
+        features = x.iloc[:,cols].columns.values.tolist()
         json_features = {'selected_features': features}
         with open(join(results_path, '{}.json'.format(method)), "w") as fp:
             json.dump(json_features, fp, indent=4)
-
+    
 
 def weka_methods(data_path, results_path, n_features, target_col):
     logger_name = 'FS Baselines'
@@ -87,7 +126,7 @@ def weka_methods(data_path, results_path, n_features, target_col):
     logger.warning('Some warnings may appear.')
     jvm.start()
     data = pd.read_csv(data_path, low_memory=False)
-    x = get_descriptive_attributes(data)
+    x = utils.get_descriptive_attributes(data)
     x_fs = x.copy()
     x_fs['target'] = data[target_col]
     x_fs = create_instances_from_matrices(x_fs.to_numpy())
@@ -117,27 +156,7 @@ def weka_methods(data_path, results_path, n_features, target_col):
     jvm.stop()
     return n_features
 
-def get_folder_name(type_folds, output_filepath):
-    logger = logging.getLogger(__name__)
-    if type_folds == 'R':
-        output_filepath = join(output_filepath, 'Regiao')
-    elif type_folds == 'S':
-        output_filepath = join(output_filepath, 'UF')
-    elif type_folds == 'ME':
-        output_filepath = join(output_filepath, 'Meso')
-    elif type_folds == 'MI':
-        output_filepath = join(output_filepath, 'Micro')
-    elif type_folds == 'D':
-        output_filepath = join(output_filepath, 'Distrito')
-    elif type_folds == 'SD':
-        output_filepath = join(output_filepath, 'Subdistrito')
-    elif type_folds == 'CN':
-        output_filepath = join(output_filepath, 'Changing_Neighborhood')
-    else:
-        output_filepath = None
-        logger.info('Incorrect type fold option try: [R, S, ME, MI, D, SD, CN]')
-        exit()
-    return output_filepath
+
 
 def run(run_fs_baselines, ds_fold):
     logger_name = 'FS Baselines'
@@ -156,7 +175,7 @@ def run(run_fs_baselines, ds_fold):
         target_col = environ.get('TARGET')
         n_features = int(environ.get('FILTERING_N_FEATURES'))
         random_perc = int(environ.get('RANDOM_PERC'))
-        output_filepath = get_folder_name(type_folds, output_filepath)
+        output_filepath = utils.get_fold_type_folder_path(type_folds, output_filepath, logger_name)
         if type_folds == 'CN':
             n_neighbors = environ.get('C_N_NEIGHBORS')
             filter_train = environ.get('FILTER_TRAIN')
@@ -177,14 +196,21 @@ def run(run_fs_baselines, ds_fold):
 
         logger.info('Selecting all features.')
         select_all_features(input_filepath, output_filepath)
-        logger.info('Selecting {}% random features.'.format(str(random_perc)))
-        select_random_features_perc(input_filepath, output_filepath, random_perc)
         logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
         n_features = weka_methods(input_filepath, output_filepath, n_features, target_col)
-        logger.info('Selecting features based on filtering: [pearson, kendall, spearman].')
-        filtering_method(input_filepath, output_filepath, n_features, target_col)
-        logger.info('Selecting {} random features.'.format(str(n_features)))
-        select_random_features_number(input_filepath, output_filepath, n_features)
+        logger.info('Selecting features based on correlation: [pearson, kendall, spearman].')
+        correlation_methods(input_filepath, output_filepath, n_features, target_col)
+        logger.info('Selecting features based on sklearn methods: [regression, mutual information].')
+        sklearn_methods(input_filepath, output_filepath, n_features, target_col)
+        logger.info('Selecting worst features sklearn.')
+        select_worst_case_sklearn(input_filepath, output_filepath, n_features, target_col)
+        logger.info('Selecting worst features correlation.')
+        correlation_methods(input_filepath, output_filepath, n_features, target_col, worst=True)
+        
+        # logger.info('Selecting {} random features.'.format(str(n_features)))
+        # select_random_features_number(input_filepath, output_filepath, n_features)
+        # logger.info('Selecting {}% random features.'.format(str(random_perc)))
+        # select_random_features_perc(input_filepath, output_filepath, random_perc)
     else:
         logger.warning('Not running feature selection baselines.')
         
