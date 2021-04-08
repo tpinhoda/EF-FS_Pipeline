@@ -2,6 +2,7 @@ import logging
 from os import environ
 from os.path import join
 from dotenv import find_dotenv, load_dotenv
+from fiona import env
 from src.utils import utils
 from src.model import make_prediction, make_train
 
@@ -9,7 +10,6 @@ def run(run_train, run_prediction, ds_folds):
     logger_name = 'Evaluation'
     logger = logging.getLogger(logger_name)
     # Get path
-    meshblocks_filepath = environ.get('MESHBLOCK')
     exp_filepath = environ.get('OUTPUT_PATH')
     exp_filepath = join(exp_filepath, ds_folds)
     # Get data fold parameters
@@ -39,23 +39,21 @@ def run(run_train, run_prediction, ds_folds):
         output_path = utils.create_folder(exp_filepath, 'results', logger_name)
         output_path = utils.create_folder(output_path, scv_model_name, logger_name)
         models_path = utils.create_folder(output_path, 'models_trained', logger_name)
-        
-        
-        make_train.run(folds_filepath, exp_filepath, models_path, scv_model_name, target_col)
+        make_train.run(folds_filepath, exp_filepath, models_path, scv_model_name, target_col, independent)
     else:
         logger.warning('Not training the model.')
     if run_prediction == 'True':
         if run_train == 'False':
             exp_filepath = join(exp_filepath, 'experiments')
             if n_features == '-1':
-                exp_filepath = join(exp_filepath,'TG_{}_FN_{}_RP_{}'.format(target_col, 'CFS', random_perc))
+                exp_filepath = join(exp_filepath,'TG_{}_FN_{}_IND_{}'.format(target_col, 'CFS', independent))
             else:
-                exp_filepath = join(exp_filepath,'TG_{}_FN_{}_RP_{}'.format(target_col, n_features, random_perc)) 
+                exp_filepath = join(exp_filepath,'TG_{}_FN_{}_IND_{}'.format(target_col, n_features, independent)) 
             output_path = join(exp_filepath, 'results', scv_model_name)   
             models_path = join(output_path, 'models_trained')
         
         results_by_folds = utils.create_folder(output_path, 'by_folds', logger_name)
-        make_prediction.run(folds_filepath, models_path, exp_filepath, results_by_folds, target_col)
+        make_prediction.run(scv_model_name, folds_filepath, models_path, exp_filepath, results_by_folds, target_col, independent)
     else:
         logger.warning('Not running prediction.')
         

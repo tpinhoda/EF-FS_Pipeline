@@ -135,7 +135,7 @@ def get_vote_shares(data, candidate):
        
     
 
-def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath, target_col, index_col, center_candidate):
+def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath, target_col, index_col, center_candidate, independent):
     logger_name = 'Visualization'
     logger = logging.getLogger(logger_name)
     fs_methods = [method for method in listdir(models_path)]
@@ -144,9 +144,12 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath
     meshblock = gpd.read_file(meshblock_filepath)
     for fs_method in fs_methods:
         logger.info('Generating for: {}'.format(fs_method))
-        selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
         pdf_pages = PdfPages(join(map_plots, fs_method + '.pdf'))
         for fold_name in tqdm(folds_names, desc='Plotting maps', leave=False):
+            if independent == 'True':
+                selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
+            else:
+                selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fold_name, fs_method + '.json'))
             model = load_model(join(models_path, fs_method, fold_name  + '.sav'))
             x_test, y_test = make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
             who_won = pd.Series(np.where(x_test['ELECTION_who_won'] == center_candidate, 'Win', 'Lost'), index=x_test.index, name='ELECTION_who_won')

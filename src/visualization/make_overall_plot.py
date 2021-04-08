@@ -33,8 +33,6 @@ def get_all_metric_results(path, file_results, metric):
 
 
 def get_baselines_results(overall_results, metric, baseline_name, topline_name):
-    
-
     baseline_results = []
     hue_baseline = []
     size_line = len(overall_results) - len(baseline_name) - 1
@@ -52,8 +50,24 @@ def get_baselines_results(overall_results, metric, baseline_name, topline_name):
     lines_results = topline_results + baseline_results
     lines_hue = hue_topline + hue_baseline
     return lines_results, lines_hue
-      
-            
+ 
+ 
+def generate_mean_baseline(data, baselines):
+    mean_baseline = data.loc[baselines,].mean().to_frame().T
+    mean_baseline.index=['Baseline']
+    data.drop(baselines, inplace=True)
+    data = data.append(mean_baseline)
+    data.loc['Baseline', 'method'] = 'baseline'
+    return data
+    
+def get_palette(methods):
+    color_topline='r'
+    color_baseline='g'
+    color_normal='b'
+    palette = [color_topline if method in ['TOPLINE', 'BASELINE'] else color_normal for method in methods]
+    return palette
+    
+              
 def generate_bar_plots(overall_results, metrics, pdf_pages):
     logger_name = 'Visualization'
     logger = logging.getLogger(logger_name)
@@ -66,6 +80,9 @@ def generate_bar_plots(overall_results, metrics, pdf_pages):
         plt.xticks(fontsize=9)
         ax.set_title(metric.upper())
         sns.set_theme(style="whitegrid")
+        if metric not in ['n_features', 'sae', 'rmse']:
+            ax.set(ylim=(0, 1))
+
         splot = sns.barplot(ax=ax,
                             x='method',
                             y=metric,
@@ -94,7 +111,42 @@ def generate_bar_plots(overall_results, metrics, pdf_pages):
         ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         plt.tight_layout()
         pdf_pages.savefig(fig)
+ 
+def generate_lollipop_plots(overall_results, metrics, pdf_pages):
+    logger_name = 'Visualization'
+    logger = logging.getLogger(logger_name)
+    baseline_name = [method for method in overall_results.index if 'worst' in method]
+    topline_name = ['topline']
+    for metric in metrics:
+        logger.info('Generating bar plot for {}'.format(metric))
+        results = generate_mean_baseline(overall_results.copy(), baseline_name)
+        results['method'] = results['method'].str.upper() 
+        fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+        plt.xticks(fontsize=9)
+        ax.set_title(metric.upper())
+        sns.set_theme(style="whitegrid")
+        if metric not in ['n_features', 'sae', 'rmse']:
+            ax.set(xlim=(0, 1))
+        # Reorder it based on the values
+        if metric in ['rmse', 'sae']:
+            ordered_df = results.sort_values(by=metric, ascending=True)
+        else:
+            ordered_df = results.sort_values(by=metric, ascending=False)
+        palette = get_palette(ordered_df['method'])
+        splot = sns.barplot(ax=ax,
+                            x=metric,
+                            y='method',
+                            data=ordered_df,
+                            palette= palette)
         
+        for p in splot.patches:
+            width = p.get_width()
+            plt.text(p.get_width()-p.get_width()*.1, p.get_y()+0.55*p.get_height(), '{:1.2f}'.format(width), ha='center', va='center', color='white')
+        
+        plt.tight_layout()
+        plt.xlabel('Metric Values')
+        plt.ylabel('Methods')
+        pdf_pages.savefig(fig)    
 
 def generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages):
     logger_name = 'Visualization'
@@ -128,11 +180,12 @@ def run(folds_results_path, plots_path):
                'kendall', 'spearmanr', 'wkendall', 
                'fscore', 'win_fscore', 'lost_fscore', 
                'accuracy', 'win_precision', 'lost_precision',
-               'win_recall', 'lost_recall', 'hit_center', 'rank_dist_center']
+               'win_recall', 'lost_recall']
     pdf_pages = PdfPages(join(plots_path, 'mean_results.pdf'))
-    generate_bar_plots(overall_results, metrics, pdf_pages)
+    #generate_bar_plots(overall_results, metrics, pdf_pages)
+    generate_lollipop_plots(overall_results, metrics, pdf_pages)
     metrics.remove('n_features')
-    generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages)
+    #generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages)
     pdf_pages.close()
     
     

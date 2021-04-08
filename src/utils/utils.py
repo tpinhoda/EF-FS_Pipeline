@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import numpy as np
 import lightgbm
 import json
 from os import mkdir
@@ -107,3 +108,18 @@ def get_descriptive_attributes(data):
     
     input_space = census_cols + idhm_cols + elections_in_cols
     return data[input_space]
+
+
+def get_geocoordinates(data):
+    u = data['GEO_x']
+    v = data['GEO_y']
+    coords = list(zip(u,v))
+    return coords
+
+
+def remove_high_correlated_columns(data, cor=.99):
+    cor_matrix = data.corr().abs()
+    upper_tri = cor_matrix.where(np.triu(np.ones(cor_matrix.shape),k=1).astype(np.bool))
+    to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > cor)]
+    data = data.drop(to_drop, axis=1)
+    return data

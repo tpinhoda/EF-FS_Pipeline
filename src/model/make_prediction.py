@@ -33,52 +33,44 @@ def create_eval_dict():
     return eval_dict
 
 
-def calculate_sae(model, x, y_true):
-    y_pred = model.predict(x)
+def calculate_sae(y_pred, x, y_true):
     OldRange = (y_pred.max() - y_pred.min())
     NewRange = (y_true.max() - y_true.min())
     y_pred = (((y_pred - y_pred.min()) * NewRange)/OldRange) + y_true.min()
     sae =  abs(y_pred - y_true).sum()
     return sae
 
-def calculate_rmse(model, x, y_true):
-    y_pred = model.predict(x)
+def calculate_rmse(y_pred, x, y_true):
     rmse = mean_squared_error(y_true, y_pred, squared=False)
     return rmse
 
-def calculate_wkendall(model, x, y_true):
-    y_pred = model.predict(x)
+def calculate_wkendall(y_pred, x, y_true):
     tau, _ = weightedtau(y_true, y_pred)
     return tau
 
 
-def calculate_kendall(model, x, y_true):
-    y_pred = model.predict(x)
+def calculate_kendall(y_pred, x, y_true):
     tau, _ = kendalltau(y_true, y_pred)
     return tau
 
 
-def calculate_spearman(model, x, y_true):
-    y_pred = model.predict(x)
+def calculate_spearman(y_pred, x, y_true):
     ro, _ = spearmanr(y_true, y_pred)
     return ro
 
-def calculate_fscore(model, x, y_true):
-    y_pred = model.predict(x)
+def calculate_fscore(y_pred, x, y_true):
     true_win_lost = np.where(y_true > 50, '1', '0')
     pred_win_lost =  np.where(y_pred > 50, '1', '0')
     fscore = f1_score(y_true=true_win_lost, y_pred=pred_win_lost, pos_label='1', labels=['1', '0'], average='weighted')
     return fscore
 
-def calculate_accuracy(model, x, y_true, fold_name):
-    y_pred = model.predict(x)
+def calculate_accuracy(y_pred, x, y_true):
     true_win_lost = np.where(y_true > 50, 1, 0)
     pred_win_lost =  np.where(y_pred > 50, 1, 0)   
     accuracy = accuracy_score(y_true=true_win_lost, y_pred=pred_win_lost)
     return accuracy
 
-def calculate_oneclass_metric(model, x, y_true, label, metric):
-    y_pred = model.predict(x)
+def calculate_oneclass_metric(y_pred, x, y_true, label, metric):
     true_win_lost = np.where(y_true > 50, 1, 0)
     pred_win_lost =  np.where(y_pred > 50, 1, 0)
     report = classification_report(true_win_lost, pred_win_lost, output_dict=True, labels=[1, 0])
@@ -89,8 +81,7 @@ def calculate_oneclass_metric(model, x, y_true, label, metric):
     return fscore
 
     
-def check_center_neighbor(model, x, y_true, center_neighbor):
-    y_pred = model.predict(x)
+def check_center_neighbor(y_pred, x, y_true, center_neighbor):
     rank_pred = pd.Series(rankdata(y_pred, method='ordinal'), index=x.index, name='rank_pred')
     rank_true = pd.Series(rankdata(y_true, method='ordinal'), index=x.index, name='rank_true')
     center = [local_idx for local_idx in center_neighbor.index if center_neighbor[local_idx] == 'center']
@@ -99,8 +90,7 @@ def check_center_neighbor(model, x, y_true, center_neighbor):
     else:
         return 0
 
-def calculate_rank_dist_center(model, x, y_true, center_neighbor):
-    y_pred = model.predict(x)
+def calculate_rank_dist_center(y_pred, x, y_true, center_neighbor):
     rank_pred = pd.Series(rankdata(y_pred, method='ordinal'), index=x.index, name='rank_pred')
     rank_true = pd.Series(rankdata(y_true, method='ordinal'), index=x.index, name='rank_true')
     center = [local_idx for local_idx in center_neighbor.index if center_neighbor[local_idx] == 'center']
@@ -108,32 +98,45 @@ def calculate_rank_dist_center(model, x, y_true, center_neighbor):
     
     
 
-def model_predict(folds_filepath, folds_names, models_path,  output_path, fs_method, selected_features, target_col):
+def model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path,  output_path, fs_method, target_col, independent):
     metrics = create_eval_dict()
     for fold_name in tqdm(folds_names, desc='Predicting folds:', position=0, leave=False):
-        
+        if independent == 'True':
+            selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
+        else:
+            selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fold_name, fs_method + '.json'))
+            
         x_test, y_test = utils.make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
         if 'Changing_Neighborhood' in output_path:
             center_neighbor = x_test['center_neighbor']
         
-        x_test = utils.filter_by_selected_features(x_test, selected_features)
-        model = load_model(join(models_path, fs_method, fold_name + '.sav'))    
+        
+        model = load_model(join(models_path, fs_method, fold_name + '.sav'))
+        if model_name != 'GWR':
+            x_test = utils.filter_by_selected_features(x_test, selected_features)
+            y_pred = model.predict(x_test)
+        else:
+            coord = np.array(utils.get_geocoordinates(x_test))
+            x_test = utils.filter_by_selected_features(x_test, selected_features)
+            y_pred = model.predict(coord, x_test.values).predy.flatten()
+
+        
         metrics['fold_name'].append(fold_name)
         metrics['size'].append(len(y_test))
         metrics['n_features'].append(len(selected_features))
-        metrics['sae'].append(calculate_sae(model, x_test, y_test))
-        metrics['rmse'].append(calculate_rmse(model, x_test, y_test))
-        metrics['kendall'].append(calculate_kendall(model, x_test, y_test))
-        metrics['wkendall'].append(calculate_wkendall(model, x_test, y_test))
-        metrics['spearmanr'].append(calculate_spearman(model, x_test, y_test))
-        metrics['fscore'].append(calculate_fscore(model, x_test, y_test))
-        metrics['accuracy'].append(calculate_accuracy(model, x_test, y_test, fold_name))
-        metrics['win_fscore'].append(calculate_oneclass_metric(model, x_test, y_test, '1', 'f1-score'))
-        metrics['lost_fscore'].append(calculate_oneclass_metric(model, x_test, y_test, '0', 'f1-score'))
-        metrics['win_precision'].append(calculate_oneclass_metric(model, x_test, y_test, '1', 'precision'))
-        metrics['lost_precision'].append(calculate_oneclass_metric(model, x_test, y_test, '0', 'precision'))
-        metrics['win_recall'].append(calculate_oneclass_metric(model, x_test, y_test, '1', 'recall'))
-        metrics['lost_recall'].append(calculate_oneclass_metric(model, x_test, y_test, '0', 'recall'))
+        metrics['sae'].append(calculate_sae(y_pred, x_test, y_test))
+        metrics['rmse'].append(calculate_rmse(y_pred, x_test, y_test))
+        metrics['kendall'].append(calculate_kendall(y_pred, x_test, y_test))
+        metrics['wkendall'].append(calculate_wkendall(y_pred, x_test, y_test))
+        metrics['spearmanr'].append(calculate_spearman(y_pred, x_test, y_test))
+        metrics['fscore'].append(calculate_fscore(y_pred, x_test, y_test))
+        metrics['accuracy'].append(calculate_accuracy(y_pred, x_test, y_test))
+        metrics['win_fscore'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '1', 'f1-score'))
+        metrics['lost_fscore'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '0', 'f1-score'))
+        metrics['win_precision'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '1', 'precision'))
+        metrics['lost_precision'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '0', 'precision'))
+        metrics['win_recall'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '1', 'recall'))
+        metrics['lost_recall'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '0', 'recall'))
         if 'Changing_Neighborhood' in output_path:
             metrics['hit_center'].append(check_center_neighbor(model, x_test, y_test, center_neighbor))
             metrics['rank_dist_center'].append(calculate_rank_dist_center(model, x_test, y_test, center_neighbor))
@@ -149,15 +152,14 @@ def model_predict(folds_filepath, folds_names, models_path,  output_path, fs_met
 def load_model(filepath):
     return pickle.load(open(filepath, 'rb'))
    
-def run(folds_filepath, models_path, exp_filepath,  output_path, target_col):
+def run(model_name, folds_filepath, models_path, exp_filepath,  output_path, target_col, independent):
     logger_name = 'Evaluation'
     logger = logging.getLogger(logger_name)
     fs_methods = [fs_method for fs_method in listdir(models_path)]
     folds_names = [fold_name for fold_name in listdir(folds_filepath)]
     for fs_method in fs_methods:
         logger.info('Predicting using method: {}'.format(fs_method))
-        selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
-        model_predict(folds_filepath, folds_names, models_path, output_path, fs_method, selected_features, target_col) 
+        model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path, output_path, fs_method, target_col, independent) 
           
             
         

@@ -25,13 +25,13 @@ def select_all_features(data_path, results_path):
         json.dump(json_features, fp, indent=4)
 
 
-def select_worst_case_sklearn(data_path, results_path, n_features, target_col):
+def select_worst_case_sklearn(data_path, results_path, n_features, target_col, methods=['regression', 'mi']):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     data = pd.read_csv(data_path, low_memory=False)
     x = utils.get_descriptive_attributes(data)
     y = data[target_col]
-    for method in ['regression', 'mi']:
+    for method in methods:
         logger.info('Selecting {} worst features based on {}.'.format(n_features, method))
         if method == 'regression':
             fs = SelectKBest(score_func=f_regression, k='all')
@@ -66,7 +66,7 @@ def select_random_features_number(data_path, results_path, n_features):
         json.dump(json_features, fp, indent=4)
 
 
-def correlation_methods(data_path, results_path, n_features, target_col, worst=False):
+def correlation_methods(data_path, results_path, n_features, target_col, methods=['pearson', 'kendall', 'spearman'], worst=False):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     
@@ -77,7 +77,7 @@ def correlation_methods(data_path, results_path, n_features, target_col, worst=F
     data = pd.read_csv(data_path, low_memory=False)
     x = utils.get_descriptive_attributes(data)
     y = data[target_col]
-    for method in ['pearson', 'kendall', 'spearman']:
+    for method in methods:
         logger.info('Selecting {} features based on {}.'.format(n_features, method))
         if method != 'wkendall':
             cor = x.corrwith(y, axis=0, method=method)
@@ -97,13 +97,13 @@ def correlation_methods(data_path, results_path, n_features, target_col, worst=F
                 json.dump(json_features, fp, indent=4)
 
 
-def sklearn_methods(data_path, results_path, n_features, target_col, worst=False):
+def sklearn_methods(data_path, results_path, n_features, target_col, methods=['regression', 'mi']):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     data = pd.read_csv(data_path, low_memory=False)
     x = utils.get_descriptive_attributes(data)
     y = data[target_col]
-    for method in ['regression', 'mi']:
+    for method in methods:
         logger.info('Selecting {} features based on {}.'.format(n_features, method))
         if method == 'regression':
             fs = SelectKBest(score_func=f_regression, k=n_features)
@@ -117,19 +117,20 @@ def sklearn_methods(data_path, results_path, n_features, target_col, worst=False
             json.dump(json_features, fp, indent=4)
     
 
-def weka_methods(data_path, results_path, n_features, target_col):
+def weka_methods(data_path, results_path, n_features, target_col, independent, methods=['cfs', 'rrelieff']):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
-    logger.info('Starting JVM.')
-    logger.warning('Some warnings may appear.')
-    jvm.start()
+    if independent:
+        logger.info('Starting JVM.')
+        logger.warning('Some warnings may appear.')
+        jvm.start()
     data = pd.read_csv(data_path, low_memory=False)
     x = utils.get_descriptive_attributes(data)
     x_fs = x.copy()
     x_fs['target'] = data[target_col]
     x_fs = create_instances_from_matrices(x_fs.to_numpy())
     x_fs.class_is_last()
-    for method in ['cfs', 'rrelieff']:
+    for method in methods:
         if method == 'rrelieff':
             logger.info('Selecting {} features based on {}.'.format(n_features, method))
             search = ASSearch(classname="weka.attributeSelection.Ranker", options=[
@@ -151,18 +152,19 @@ def weka_methods(data_path, results_path, n_features, target_col):
             json.dump(json_features, fp, indent=4)
         if n_features == -1:
             n_features = len(features)
-    jvm.stop()
+    if independent:
+        jvm.stop()
     return n_features
 
 
 
-def run(input_filepath, output_filepath, n_features, target_col):
+def run(input_filepath, output_filepath, n_features, target_col, independent=True):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     logger.info('Selecting all features.')
     select_all_features(input_filepath, output_filepath)
     logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
-    n_features = weka_methods(input_filepath, output_filepath, n_features, target_col)
+    n_features = weka_methods(input_filepath, output_filepath, n_features, target_col, independent)
     logger.info('Selecting features based on correlation: [pearson, kendall, spearman].')
     correlation_methods(input_filepath, output_filepath, n_features, target_col)
     logger.info('Selecting features based on sklearn methods: [regression, mutual information].')

@@ -55,7 +55,7 @@ def run(run_general_maps, run_map_plots, run_shap_plots, ds_fold):
         logger.warning('Not generating general plots.')
     if run_map_plots == 'True':
         map_plots_path = utils.create_folder(plots_path, 'map_plots', logger_name)
-        make_map_plot.run(folds_filepath, models_path, exp_filepath, map_plots_path, meshblocks_filepath, target_col, index_col, center_candidate)
+        make_map_plot.run(folds_filepath, models_path, exp_filepath, map_plots_path, meshblocks_filepath, target_col, index_col, center_candidate, independent)
     else:
         logger.warning('Not generating map plots.')
     if run_shap_plots == 'True':
