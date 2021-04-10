@@ -112,7 +112,7 @@ def generate_bar_plots(overall_results, metrics, pdf_pages):
         plt.tight_layout()
         pdf_pages.savefig(fig)
  
-def generate_lollipop_plots(overall_results, metrics, pdf_pages):
+def generate_horizontal_bar_plots(overall_results, metrics, pdf_pages):
     logger_name = 'Visualization'
     logger = logging.getLogger(logger_name)
     baseline_name = [method for method in overall_results.index if 'worst' in method]
@@ -183,7 +183,7 @@ def run(folds_results_path, plots_path):
                'win_recall', 'lost_recall']
     pdf_pages = PdfPages(join(plots_path, 'mean_results.pdf'))
     #generate_bar_plots(overall_results, metrics, pdf_pages)
-    generate_lollipop_plots(overall_results, metrics, pdf_pages)
+    generate_horizontal_bar_plots(overall_results, metrics, pdf_pages)
     metrics.remove('n_features')
     #generate_posthoc_heatmap(folds_results_path, metrics, fs_methods, pdf_pages)
     pdf_pages.close()

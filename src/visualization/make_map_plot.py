@@ -1,4 +1,3 @@
-from src.model.make_prediction import calculate_rmse
 import logging
 import pickle
 import pandas as pd
@@ -11,6 +10,7 @@ from os import listdir
 from os.path import join
 from tqdm import tqdm
 from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib as mpl
 from src.utils import utils
 
 plt.rc('legend',fontsize=4)
@@ -53,7 +53,7 @@ def create_index_col_meshblock(meshblock, index_col):
     return new_meshblock, key
 
 
-def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, move_legend=False, sae=0, kendall=0):
+def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, legend=False, sae=0, kendall=0):
     ax[row][col].set_title(title)
     ax[row][col].set_xticks([]) 
     ax[row][col].set_yticks([])
@@ -68,12 +68,23 @@ def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, move_l
                           ax[row][col].transAxes, fontsize=7,
             verticalalignment='top', bbox=props)
     if 'Distribution' in title:
-        map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap, vmin=0, vmax=100)
+        plot = map_data.plot(column=target_col, ax=ax[row][col], legend=legend, cmap=cmap, vmin=0, vmax=100, edgecolor='black', linewidth=.01)
     if 'Rank' in title:
-        map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap)
+        map_data[target_col] = map_data[target_col].astype('str')
+        plot = map_data.plot(column=target_col, ax=ax[row][col], legend=legend, cmap=cmap, edgecolor='black', linewidth=.01)
     if 'Win' in title:
-        map_data.plot(column=target_col, ax=ax[row][col], legend=True, cmap=cmap)
-
+        #colors = np.where(map_data[target_col] == 'Lost', '#ac0e28', '#013766')
+        plot = map_data.plot(column=target_col, ax=ax[row][col], legend=legend, cmap=cmap, edgecolor='black', linewidth=.01, 
+                      legend_kwds={'frameon': True, 
+                                   'loc': 'center left', 
+                                   'title': 'Win or Lost?', 
+                                   'fontsize': 5, 
+                                   'bbox_to_anchor':(1.05, .75),
+                                   'markerscale': .5})
+        #leg = ax[row][col].get_legend()
+        #leg.set_bbox_to_anchor((1.5, 1))
+        
+    return plot 
        # legend = handles=ax[row][col].get_legend()
        # handles = [] if legend is None else legend.legendHandles
        # plt.legend(handles=handles, title='title', bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -104,18 +115,27 @@ def generate_map_plot(fold_name, model, x, y_true, meshblock, who_won, index_col
     # Calculate text metrics
     sae = calculate_sae(model, x,y_true)
     kendall = calculate_kendall(model, x,y_true)
-    fig, ax = plt.subplots(3, 2)
+    fig, ax = plt.subplots(3, 2, subplot_kw=dict(aspect='equal'), figsize=(5, 5))
     fig.suptitle('Fold: {}'.format(fold_name), fontsize=16)
+    
     cmap = 'YlOrRd'
     plot_map(true_map, ax, 0, 0, target_col, 'True Distribution', cmap)
-    plot_map(pred_map, ax, 0, 1, 'y_pred', 'Predicted Distribution', cmap, text=True, sae=sae, kendall=kendall)
+    plot = plot_map(pred_map, ax, 0, 1, 'y_pred', 'Predicted Distribution', cmap, text=True, sae=sae, kendall=kendall)
+    cax = fig.add_axes([0.82, 0.66, 0.02, 0.22]) 
+    plt.colorbar(plot.collections[0], cax=cax)
+    
     cmap = 'RdYlBu'
     plot_map(true_map, ax, 1, 0, 'rank_true', 'True Rank', cmap)
-    plot_map(pred_map, ax, 1, 1, 'rank_pred', 'Predicted Rank', cmap)
+    plot = plot_map(pred_map, ax, 1, 1, 'rank_pred', 'Predicted Rank', cmap)
+    cax = fig.add_axes([0.82, 0.39, 0.02, 0.22]) 
+    plt.colorbar(plot.collections[0], cax=cax)
+    
     cmap='Paired'
-    plot_map(true_win_map, ax, 2, 0, 'ELECTION_who_won', 'True Win Map', cmap, move_legend=True)
-    cmap='Paired'
-    plot_map(pred_map, ax, 2, 1, 'won_pred', 'Predicted Win Map', cmap, move_legend=True)
+    plot_map(true_win_map, ax, 2, 0, 'ELECTION_who_won', 'True Win Map', cmap)
+    plot_map(pred_map, ax, 2, 1, 'won_pred', 'Predicted Win Map', cmap, legend=True)
+    
+   
+    fig.subplots_adjust(right=0.8)
     pdf_pages.savefig(bbox_inches="tight")
     plt.close('all')
     
