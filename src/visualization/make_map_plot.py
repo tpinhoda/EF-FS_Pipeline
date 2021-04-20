@@ -5,6 +5,7 @@ import numpy as np
 import geopandas as gpd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
 from scipy.stats import rankdata, kendalltau
 from os import listdir
 from os.path import join
@@ -26,6 +27,10 @@ def calculate_kendall(model, x, y_true):
     tau, _ = kendalltau(y_true, y_pred)
     return tau
 
+def calculate_rmse(model, x, y_true):
+    y_pred = model.predict(x)
+    rmse = mean_squared_error(y_true, y_pred, squared=False)
+    return rmse
 
 def calculate_sae(model, x, y_true):
     y_pred = model.predict(x)
@@ -53,13 +58,13 @@ def create_index_col_meshblock(meshblock, index_col):
     return new_meshblock, key
 
 
-def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, legend=False, sae=0, kendall=0):
+def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, legend=False, rmse=0, kendall=0):
     ax[row][col].set_title(title)
     ax[row][col].set_xticks([]) 
     ax[row][col].set_yticks([])
     if text:
         textstr = '\n'.join((
-                  r'$\mathrm{SAE}=%.2f$' % (sae, ),
+                  r'$\mathrm{SAE}=%.2f$' % (rmse, ),
                   r'$Kendall=%.2f$' % (kendall, )))
         # these are matplotlib.patch.Patch properties
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.2)
@@ -70,7 +75,6 @@ def plot_map(map_data, ax, row, col, target_col, title, cmap, text=False, legend
     if 'Distribution' in title:
         plot = map_data.plot(column=target_col, ax=ax[row][col], legend=legend, cmap=cmap, vmin=0, vmax=100, edgecolor='black', linewidth=.01)
     if 'Rank' in title:
-        map_data[target_col] = map_data[target_col].astype('str')
         plot = map_data.plot(column=target_col, ax=ax[row][col], legend=legend, cmap=cmap, edgecolor='black', linewidth=.01)
     if 'Win' in title:
         #colors = np.where(map_data[target_col] == 'Lost', '#ac0e28', '#013766')
@@ -97,11 +101,13 @@ def generate_map_plot(fold_name, model, x, y_true, meshblock, who_won, index_col
     # Making rankings
     rank_pred = pd.Series(rankdata(y_pred), index=x.index, name='rank_pred').astype('int64')
     rank_true = pd.Series(rankdata(y_true), index=x.index, name='rank_true').astype('int64')
+
     # Using the same index col as original data
     map_data, key = create_index_col_meshblock(meshblock, index_col)
     # Adding y and rank to the meshblock
     true_map = merge_meshblock_results(map_data, y_true, rank_true, key)
     pred_map = merge_meshblock_results(map_data, y_pred, rank_pred, key)
+
     # Adding who won and vote shares to meshblock 
     true_win_map = map_data.merge(who_won, on=key, how='left')
     true_win_map.dropna(axis=0, inplace=True)
@@ -113,14 +119,14 @@ def generate_map_plot(fold_name, model, x, y_true, meshblock, who_won, index_col
     vote_map = map_data.merge(vote_shares, on=key, how='left')
     vote_map.dropna(axis=0, inplace=True)
     # Calculate text metrics
-    sae = calculate_sae(model, x,y_true)
+    rmse = calculate_rmse(model, x,y_true)
     kendall = calculate_kendall(model, x,y_true)
     fig, ax = plt.subplots(3, 2, subplot_kw=dict(aspect='equal'), figsize=(5, 5))
     fig.suptitle('Fold: {}'.format(fold_name), fontsize=16)
     
     cmap = 'YlOrRd'
     plot_map(true_map, ax, 0, 0, target_col, 'True Distribution', cmap)
-    plot = plot_map(pred_map, ax, 0, 1, 'y_pred', 'Predicted Distribution', cmap, text=True, sae=sae, kendall=kendall)
+    plot = plot_map(pred_map, ax, 0, 1, 'y_pred', 'Predicted Distribution', cmap, text=True, rmse=rmse, kendall=kendall)
     cax = fig.add_axes([0.82, 0.66, 0.02, 0.22]) 
     plt.colorbar(plot.collections[0], cax=cax)
     
@@ -179,6 +185,5 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath
             x_test = utils.filter_by_selected_features(x_test, selected_features)
             generate_map_plot(fold_name, model, x_test, y_test, meshblock, who_won, index_col, target_col, candidate_vote_shares, center_candidate, pdf_pages)
         pdf_pages.close()
-        
         
     

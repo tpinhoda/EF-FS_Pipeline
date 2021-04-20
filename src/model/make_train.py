@@ -2,7 +2,7 @@ import logging
 import random
 import pickle
 import numpy as np
-from os import environ, listdir
+from os import environ, listdir, chdir, getcwd
 from os.path import join
 from tqdm import tqdm
 from src.utils import utils
@@ -23,18 +23,22 @@ def get_rep_folds(list_folds, k, rep):
 
 
 def save_model(model, path, filename):
-    pickle.dump(model, open(join(path, filename), 'wb'))
-
-
+     pickle.dump(model, open(join(path, filename), 'wb'))
+        
 def train_model(model_name, folds_filepath, fold, model, features_selected, target_col, output_path, meshblock=[], index_col=None):
     x_train, y_train = utils.make_data(join(folds_filepath, fold), target_col, 'train.csv')
-    if model_name != 'GWR':
+    if model_name == 'CR':
+        context = x_train['ELECTION_who_won']
         x_train = utils.filter_by_selected_features(x_train, features_selected)
-        model.fit(x_train, y_train)
-    else:
+        model.fit(x_train, y_train, context)
+    elif model == 'GWR':
         coords = utils.get_geocoordinates(x_train)
         x_train = utils.filter_by_selected_features(x_train, features_selected)
         model = GWR(coords, y_train.values.reshape((-1,1)), x_train.values, bw=40.000, fixed=False, kernel='gaussian')
+    else:
+        x_train = utils.filter_by_selected_features(x_train, features_selected)
+        model.fit(x_train, y_train)
+
         #gwr_selector = Sel_BW(coords, y_train.values.reshape((-1,1)), x_train.values)
         #gwr_bw = gwr_selector.search(bw_min=2)
         #print(gwr_bw)

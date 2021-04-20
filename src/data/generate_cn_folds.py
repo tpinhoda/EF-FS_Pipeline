@@ -5,6 +5,7 @@ import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
 from os.path import join
+from shapely.geometry import geo
 from tqdm import tqdm
 
 from src.utils import utils
@@ -19,6 +20,14 @@ def neighbors_to_remove(indexes, matrix, data):
     to_remove = [n for n in neighbors if n not in indexes]
     return to_remove
 
+def group_neighbors_to_remove(spatial_attr, area, indexes, matrix, data):
+    area_matrix = matrix.loc[indexes]
+    neighbors = area_matrix.sum(axis=0) > 0
+    neighbors = neighbors[neighbors].index.astype('int64')
+    neighbors = [n for n in neighbors if n in data.columns]
+    neighbors_data = data.loc[neighbors]
+    to_remove = neighbors_data[neighbors_data[spatial_attr] != area].index
+    return to_remove
 
 def generate_bipartite_matrix(data, adj_m_queen, center_candidate, n_neighbors):
     if center_candidate == 'HADDAD':
@@ -95,8 +104,53 @@ def make_folds_by_changing_neighborhood(input_filepath, queen_matrix_filepath, m
         test_data.to_csv(join(fold_path, 'test.csv'))
         train_data.to_csv(join(fold_path, 'train.csv'))
     return output_filepath
+
+
+def make_folds_by_group_changing_neighborhood(input_filepath, queen_matrix_filepath, meshblock_filepath, output_filepath, type_folds, center_candidate, n_neighbors, filter_train, group_cn):
+    logger_name ='Spatial Folds'
+    logger = logging.getLogger(logger_name)
+    logger.info('Generating Changing Neighborhood folds')
+    geo_name = utils.get_name_geo_group(group_cn, logger_name)
+    output_filepath = utils.create_folder(output_filepath, 'Changing_Neighborhood_grouped_{}'.format(geo_name), logger_name)
+    output_filepath = utils.create_folder(output_filepath, center_candidate+'_N'+str(n_neighbors)+'_FT_'+filter_train, logger_name)
     
- 
+    data = pd.read_csv(input_filepath)
+    adj_m_queen = pd.read_csv(queen_matrix_filepath)
+    meshblock = gpd.read_file(meshblock_filepath)
+    
+    
+    if data.columns[0] == 'GEO_Cod_Municipio':
+        index_name = 'CD_GEOCMU'
+        data[index_name] = data.GEO_Cod_Municipio.astype('str')
+    elif data.columns[0] == 'GEO_Cod_ap':
+        index_name = 'Cod_ap'
+        data[index_name] = data.GEO_Cod_ap.astype('str')
+    
+    data.set_index(index_name, inplace=True)
+    adj_m_queen.set_index(index_name, inplace=True)
+    
+    meshblock.set_index(index_name, inplace=True)
+    meshblock = meshblock.merge(data['ELECTION_who_won'], on=index_name, how='left')
+    
+    adj_m_bipartite = generate_bipartite_matrix(data, adj_m_queen, center_candidate, n_neighbors)
+
+    if filter_train == 'True':
+        data = filter_data(data, adj_m_bipartite,  output_filepath)   
+    fold_output_filepath = utils.create_folder(output_filepath, 'folds', logger_name)   
+    geo_group = utils.get_geo_attribute(group_cn, logger_name) 
+    for key, test_data in tqdm(data.groupby(by=geo_group), desc='Creating spatial folds', leave=False):
+        if len(test_data) >= 1:
+            fold_path = utils.create_folder(fold_output_filepath, str(key).lower(), logger_name, show_msg=False)
+            train_data = data.copy()
+            train_data.drop(test_data.index, inplace=True)
+            buffer = group_neighbors_to_remove(geo_group, key, test_data.index.astype('int64'), adj_m_queen, data)
+            train_data.drop(buffer, inplace=True)
+            
+            test_data.to_csv(join(fold_path, 'test.csv'))
+            train_data.to_csv(join(fold_path, 'train.csv'))
+    return data, output_filepath
+    
+
 def plot_cn_groups(input_filepath, meshblock_filepath, queen_matrix_filepath, output_filepath, center_candidate, n_neighbors):
     data = pd.read_csv(input_filepath)
     adj_m_queen = pd.read_csv(queen_matrix_filepath)
@@ -123,8 +177,40 @@ def plot_cn_groups(input_filepath, meshblock_filepath, queen_matrix_filepath, ou
     _, ax = plt.subplots(1, 1)
     meshblocks.plot(column='ELECTION_who_won', cmap='Paired', legend=True, ax=ax)
     plt.savefig(join(output_filepath, 'CN_folds.pdf'))
+ 
+ 
+def plot_geo_groups(data, meshblock_filepath, output_filepath, group_cn):
+    logger_name = 'Spatial Folds'
+    logger = logging.getLogger(logger_name)
+    meshblock = gpd.read_file(meshblock_filepath)
+    index_name = data.columns[0]
+    if index_name == 'GEO_Cod_Municipio':
+        mesh_index = 'CD_GEOCMU'
+    elif index_name == 'GEO_Cod_ap':
+        mesh_index = 'Cod_ap'
+        
+    meshblock.rename(columns={mesh_index: index_name}, inplace=True)  
     
+    meshblock[index_name] = meshblock[index_name].astype('int64')
+    data.index = data.index.astype('int64')
     
-def run(input_filepath, meshblock_filepath, output_filepath, type_folds, queen_matrix_filepath, n_neighbors, center_candidate, filter_train):
-    output_filepath = make_folds_by_changing_neighborhood(input_filepath, queen_matrix_filepath, meshblock_filepath, output_filepath, type_folds, center_candidate, n_neighbors, filter_train)
-    plot_cn_groups(input_filepath, meshblock_filepath, queen_matrix_filepath, output_filepath, center_candidate, n_neighbors)
+    geo_attr = utils.get_geo_attribute(group_cn, logger_name)
+    name_fold = geo_attr.split('_')[-1]
+    logger.info('Plotting spatial folds by: {}'.format(geo_attr))
+    
+    meshblock = meshblock.merge(data[[index_name,geo_attr]], on=index_name, how='left')
+    fig, ax = plt.subplots(1, 1)
+    meshblock.plot(column=geo_attr, categorical=True, cmap='tab20', linewidth=.6, edgecolor='0.2',
+                   legend=False, legend_kwds={'bbox_to_anchor': (.3, 1.05), 'fontsize': 16, 'frameon': False}, ax=ax)
+    plt.savefig(join(output_filepath, '{}_folds.pdf'.format(name_fold)))
+       
+    
+def run(input_filepath, meshblock_filepath, output_filepath, type_folds, queen_matrix_filepath, n_neighbors, center_candidate, filter_train, group_cn):
+    if group_cn == 'CN':
+        output_filepath = make_folds_by_changing_neighborhood(input_filepath, queen_matrix_filepath, meshblock_filepath, output_filepath, type_folds, center_candidate, n_neighbors, filter_train)
+        plot_cn_groups(input_filepath, meshblock_filepath, queen_matrix_filepath, output_filepath, center_candidate, n_neighbors)
+    else:
+        data, output_filepath = make_folds_by_group_changing_neighborhood(input_filepath, queen_matrix_filepath, meshblock_filepath, output_filepath, type_folds, center_candidate, n_neighbors, filter_train, group_cn)
+        plot_geo_groups(data, meshblock_filepath, output_filepath, group_cn)
+        
+    

@@ -6,7 +6,9 @@ import json
 from os import mkdir
 from os.path import join
 from sklearn.linear_model import LinearRegression
-
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor
+from src.model.contextual_regression import ContextualRegression
 
 
 def create_folder(path, folder_name, logger_name, show_msg=True):
@@ -23,6 +25,23 @@ def create_folder(path, folder_name, logger_name, show_msg=True):
             pass
     return path
 
+
+def get_name_geo_group(group, logger_name):
+    logger = logging.getLogger(logger_name)
+    if group == 'R':
+        name = 'Regiao'
+    elif group == 'S':
+        name = 'UF'
+    elif group == 'ME':
+        name = 'Meso'
+    elif group == 'MI':
+        name = 'Micro'
+    elif group == 'CN':
+        name = 'Changing_Neighborhood'
+    else:
+        logger.error('Incorrect geo group: [R, S, ME, MI, CN]')
+        exit()
+    return name
 
 def get_fold_type_folder_path(type_folds, root_filepath, logger_name):
     logger = logging.getLogger(logger_name)
@@ -68,11 +87,17 @@ def get_geo_attribute(type_folds, logger_name):
     return geo_group
 
 
-def get_model(model_name):
+def get_model(model_name, knn=60):
     if model_name == 'LR':
         model = LinearRegression()
     elif model_name == 'LGBM':
         model = lightgbm.LGBMRegressor()
+    elif model_name == 'KNN':
+        model = KNeighborsRegressor(n_neighbors=knn)
+    elif model_name == 'DT':
+        model = DecisionTreeRegressor()
+    elif model_name == 'CR':
+        model = ContextualRegression()
     else:
         model = None
     return model

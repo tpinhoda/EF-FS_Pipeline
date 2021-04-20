@@ -28,10 +28,14 @@ def run(run_make_folds):
     meshblock_filepath = environ.get('MESHBLOCK')
     output_filepath = environ.get('OUTPUT_PATH')
     # Set type folds configs
+    filter_data = environ.get('FILTER_DATA')
+    filter_attribute = environ.get('FILTER_ATTRIBUTE_NAME')
+    filter_value = environ.get('FILTER_ATTRIBUTE_VALUE')
     type_folds = environ.get('TYPE_FOLDS')
     n_neighbors = int(environ.get('C_N_NEIGHBORS'))
     center_candidate = environ.get('CENTER_CANDIDATE')
-    filter_train = environ.get('FILTER_TRAIN') 
+    filter_train = environ.get('FILTER_TRAIN')
+    group_cn = environ.get('GROUP_CN')
     # Input dataset details
     region = environ.get('REGION_NAME')
     aggr = environ.get('AGGR_LEVEL')
@@ -45,26 +49,31 @@ def run(run_make_folds):
     ibge_year = 'C' + environ.get('CENSUS_YEAR')
     idhm_year = 'I' + environ.get('IDHM_YEAR')
         
-        
+    if filter_data == 'True':
+        region = filter_attribute + '_'+ filter_value    
     dataset_fold_name = region +'_'+ aggr +'_'+ tse_year + tse_turn + tse_office + tse_per +'_'+ ibge_year +'_'+ idhm_year
     if run_make_folds == 'True':
         logger.info('Creating dataset folder.')
         output_filepath = utils.create_folder(output_filepath, dataset_fold_name, logger_name)
         if type_folds == 'CN':
             generate_changing_neighbors_folds.run(input_filepath,
-                                                meshblock_filepath,
-                                                output_filepath,
-                                                type_folds,
-                                                queen_matrix_filepath,
-                                                n_neighbors,
-                                                center_candidate,
-                                                filter_train)
+                                                  meshblock_filepath,
+                                                  output_filepath,
+                                                  type_folds,
+                                                  queen_matrix_filepath,
+                                                  n_neighbors,
+                                                  center_candidate,
+                                                  filter_train,
+                                                  group_cn)
         else:
             generate_geo_groups_folds.run(input_filepath,
-                                        meshblock_filepath,
-                                        output_filepath,
-                                        type_folds,
-                                        queen_matrix_filepath)
+                                          meshblock_filepath,
+                                          output_filepath,
+                                          type_folds,
+                                          queen_matrix_filepath,
+                                          filter_data,
+                                          filter_attribute,
+                                          filter_value)
     else:
         logger.warning('Not creating spatial folds.')
     return(dataset_fold_name)

@@ -18,15 +18,18 @@ def neighbors_to_remove(spatial_attr, area, indexes, matrix, data):
     to_remove = neighbors_data[neighbors_data[spatial_attr] != area].index
     return to_remove
 
-def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix_filepath, type_folds):
+def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix_filepath, type_folds, filter_data, filter_attr, filter_value):
     logger_name = 'Spatial Folds'
     logger = logging.getLogger(logger_name)
     adj_m_queen = pd.read_csv(queen_matrix_filepath)
     adj_m_queen.set_index(adj_m_queen.columns[0], inplace=True)
     data = pd.read_csv(input_filepath)
     data.set_index(data.columns[0], inplace=True)
+    if filter_data == 'True':
+        data = data[data[filter_attr].astype('str') == filter_value]
+        data.to_csv(join(output_filepath,'filtered_data.csv'))
+        
     geo_group = utils.get_geo_attribute(type_folds, logger_name)
-    
     logger.info('Generating spatial folds by: {}'.format(geo_group))
     name_fold = geo_group.split('_')[-1]
     output_filepath = utils.create_folder(output_filepath, name_fold, logger_name)
@@ -45,11 +48,14 @@ def make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix
     return output_filepath
             
 
-def plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_folds):
+def plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_folds, filter_data, filter_attr, filter_value):
     logger_name = 'Spatial Folds'
     logger = logging.getLogger(logger_name)
     meshblock = gpd.read_file(meshblock_filepath)
-    data = pd.read_csv(input_filepath) 
+    data = pd.read_csv(input_filepath)
+    if filter_data == 'True':
+        data = data[data[filter_attr].astype('str') == filter_value]
+        data.to_csv(join(output_filepath,'filtered_data.csv'))
     index_name = data.columns[0]
     if index_name == 'GEO_Cod_Municipio':
         mesh_index = 'CD_GEOCMU'
@@ -72,7 +78,7 @@ def plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_fo
     plt.savefig(join(output_filepath, '{}_folds.pdf'.format(name_fold)))
     
 
-def run(input_filepath, meshblock_filepath, output_filepath, type_folds, queen_matrix_filepath):
+def run(input_filepath, meshblock_filepath, output_filepath, type_folds, queen_matrix_filepath, filter_data, filter_attr, filter_value):
     # Log text to show on screen
-    output_filepath = make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix_filepath, type_folds)
-    plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_folds)
+    output_filepath = make_folds_by_geographic_group(input_filepath, output_filepath, queen_matrix_filepath, type_folds, filter_data, filter_attr, filter_value)
+    plot_geo_groups(input_filepath, meshblock_filepath, output_filepath, type_folds, filter_data, filter_attr, filter_value)

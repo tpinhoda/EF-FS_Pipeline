@@ -32,6 +32,10 @@ def run(run_general_maps, run_map_plots, run_shap_plots, ds_fold):
         n_neighbors = environ.get('C_N_NEIGHBORS')
         filter_train = environ.get('FILTER_TRAIN')
         folder_name = center_candidate + '_' + 'N'+n_neighbors+'_FT_'+filter_train
+        group_CN = environ.get('GROUP_CN')
+        if group_CN != 'CN':
+            geo_name = utils.get_name_geo_group(group_CN, logger_name)
+            exp_filepath = exp_filepath +'_grouped_{}'.format(geo_name)
         exp_filepath = join(exp_filepath, folder_name)
         
     

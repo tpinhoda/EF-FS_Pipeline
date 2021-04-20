@@ -108,8 +108,10 @@ def model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_
             
         x_test, y_test = utils.make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
         if 'Changing_Neighborhood' in output_path:
-            center_neighbor = x_test['center_neighbor']
-        
+            try:
+                center_neighbor = x_test['center_neighbor']
+            except KeyError:
+                pass    
         
         model = load_model(join(models_path, fs_method, fold_name + '.sav'))
         if model_name != 'GWR':
@@ -138,8 +140,12 @@ def model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_
         metrics['win_recall'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '1', 'recall'))
         metrics['lost_recall'].append(calculate_oneclass_metric(y_pred, x_test, y_test, '0', 'recall'))
         if 'Changing_Neighborhood' in output_path:
-            metrics['hit_center'].append(check_center_neighbor(model, x_test, y_test, center_neighbor))
-            metrics['rank_dist_center'].append(calculate_rank_dist_center(model, x_test, y_test, center_neighbor))
+            try:
+                metrics['hit_center'].append(check_center_neighbor(model, x_test, y_test, center_neighbor))
+                metrics['rank_dist_center'].append(calculate_rank_dist_center(model, x_test, y_test, center_neighbor))
+            except UnboundLocalError:
+                metrics['hit_center'].append(0)
+                metrics['rank_dist_center'].append(0)
         else:
             metrics['hit_center'].append(0)
             metrics['rank_dist_center'].append(0)

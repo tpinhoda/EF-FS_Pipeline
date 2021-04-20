@@ -3,17 +3,18 @@ import pandas as pd
 import numpy as np
 import json
 import random
+import weka.core.jvm as jvm
+import matplotlib.pyplot as plt
+from pandas.api.types import is_numeric_dtype
 from os.path import join
 from tqdm import tqdm
 from scipy.stats import weightedtau
-
-import weka.core.jvm as jvm
 from weka.attribute_selection import ASEvaluation, ASSearch, AttributeSelection
 from weka.core.dataset import create_instances_from_matrices
-
 from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
-
 from src.utils import utils
+from matplotlib.backends.backend_pdf import PdfPages
+
 
 
 def select_all_features(data_path, results_path):
@@ -25,7 +26,7 @@ def select_all_features(data_path, results_path):
         json.dump(json_features, fp, indent=4)
 
 
-def select_worst_case_sklearn(data_path, results_path, n_features, target_col, methods=['regression', 'mi']):
+def select_worst_case_sklearn(data_path, results_path, desc_filepath, output_desc_filepath, n_features, target_col, methods=['regression', 'mi']):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     data = pd.read_csv(data_path, low_memory=False)
@@ -38,8 +39,9 @@ def select_worst_case_sklearn(data_path, results_path, n_features, target_col, m
         if method == 'mutual_information':
             fs = SelectKBest(score_func=mutual_info_regression, k='all')
         fs.fit(x, y)
-        worst_idx = np.argsort(fs.scores_)[:n_features-1]
+        worst_idx = np.argsort(fs.scores_)[:n_features+1]
         features = x.columns[worst_idx].values.tolist()
+        plot_desc_features(desc_filepath, output_desc_filepath, features, 'worst_{}.pdf'.format(method))
         json_features = {'selected_features': features}
         with open(join(results_path, 'worst_{}.json'.format(method)), "w") as fp:
             json.dump(json_features, fp, indent=4)
@@ -66,7 +68,7 @@ def select_random_features_number(data_path, results_path, n_features):
         json.dump(json_features, fp, indent=4)
 
 
-def correlation_methods(data_path, results_path, n_features, target_col, methods=['pearson', 'kendall', 'spearman'], worst=False):
+def correlation_methods(data_path, results_path, desc_filepath, output_desc_filepath, n_features, target_col, methods=['pearson', 'kendall', 'spearman'], worst=False):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     
@@ -87,17 +89,19 @@ def correlation_methods(data_path, results_path, n_features, target_col, methods
         if worst:
             cor = cor.abs()
             features = cor.nsmallest(n_features).index.values.tolist()
+            plot_desc_features(desc_filepath, output_desc_filepath, features, 'worst_{}.pdf'.format(method))
             json_features = {'selected_features': features}
             with open(join(results_path, 'worst_{}.json'.format(method)), "w") as fp:
                 json.dump(json_features, fp, indent=4)
         else:    
             features = cor.nlargest(n_features).index.values.tolist()
+            plot_desc_features(desc_filepath, output_desc_filepath, features, method)
             json_features = {'selected_features': features}
             with open(join(results_path, '{}.json'.format(method)), "w") as fp:
                 json.dump(json_features, fp, indent=4)
 
 
-def sklearn_methods(data_path, results_path, n_features, target_col, methods=['regression', 'mi']):
+def sklearn_methods(data_path, results_path, desc_filepath, output_desc_filepath, n_features, target_col, methods=['regression', 'mi']):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     data = pd.read_csv(data_path, low_memory=False)
@@ -112,12 +116,13 @@ def sklearn_methods(data_path, results_path, n_features, target_col, methods=['r
         fs.fit(x, y)
         cols = fs.get_support(indices=True)
         features = x.iloc[:,cols].columns.values.tolist()
+        plot_desc_features(desc_filepath, output_desc_filepath, features, method)
         json_features = {'selected_features': features}
         with open(join(results_path, '{}.json'.format(method)), "w") as fp:
             json.dump(json_features, fp, indent=4)
     
 
-def weka_methods(data_path, results_path, n_features, target_col, independent, methods=['cfs', 'rrelieff']):
+def weka_methods(data_path, results_path, desc_filepath, output_desc_filepath, n_features, target_col, independent, methods=['cfs', 'rrelieff']):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     if independent:
@@ -125,6 +130,8 @@ def weka_methods(data_path, results_path, n_features, target_col, independent, m
         logger.warning('Some warnings may appear.')
         jvm.start()
     data = pd.read_csv(data_path, low_memory=False)
+    if not is_numeric_dtype(data[target_col]):
+        data[target_col] = data[target_col].rank(method='dense', ascending=False).astype(int)
     x = utils.get_descriptive_attributes(data)
     x_fs = x.copy()
     x_fs['target'] = data[target_col]
@@ -148,6 +155,7 @@ def weka_methods(data_path, results_path, n_features, target_col, independent, m
         index_fs = [i - 1 for i in attsel.selected_attributes]
         features = x.columns.values[index_fs].tolist()
         json_features = {'selected_features': features}
+        plot_desc_features(desc_filepath, output_desc_filepath, features, method)
         with open(join(results_path, '{}.json'.format(method)), "w") as fp:
             json.dump(json_features, fp, indent=4)
         if n_features == -1:
@@ -157,22 +165,41 @@ def weka_methods(data_path, results_path, n_features, target_col, independent, m
     return n_features
 
 
+def plot_desc_features(desc_filepath, output_filepath, features, method):
+    desc_data = pd.read_csv(desc_filepath)
+    desc_data.set_index('nome_variavel', inplace=True)
+    desc_features = desc_data.index.values
+    features = [f.replace('CENSUS_','') for f in features]
+    features = [f for f in features if f in desc_features]
+    desc_data = desc_data.loc[features]
+    desc_data.reset_index(inplace=True)
+    desc_data.drop('Tabela', axis=1, inplace=True)
+    fig, ax =plt.subplots() 
+    ax.axis('tight')
+    ax.axis('off')
+    table = ax.table(cellText=desc_data.values, colLabels=desc_data.columns, loc='center')
+    table.set_fontsize(21)
+    table.scale(2.5, 2.5)
+    pp = PdfPages(join(output_filepath, '{}.pdf'.format(method)))
+    pp.savefig(fig, bbox_inches='tight')
+    pp.close()
+    
 
-def run(input_filepath, output_filepath, n_features, target_col, independent=True):
+def run(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col, independent=True):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     logger.info('Selecting all features.')
     select_all_features(input_filepath, output_filepath)
     logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
-    n_features = weka_methods(input_filepath, output_filepath, n_features, target_col, independent)
+    n_features = weka_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col, independent)
     logger.info('Selecting features based on correlation: [pearson, kendall, spearman].')
-    correlation_methods(input_filepath, output_filepath, n_features, target_col)
+    correlation_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
     logger.info('Selecting features based on sklearn methods: [regression, mutual information].')
-    sklearn_methods(input_filepath, output_filepath, n_features, target_col)
+    sklearn_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
     logger.info('Selecting worst features sklearn.')
-    select_worst_case_sklearn(input_filepath, output_filepath, n_features, target_col)
+    select_worst_case_sklearn(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
     logger.info('Selecting worst features correlation.')
-    correlation_methods(input_filepath, output_filepath, n_features, target_col, worst=True)
+    correlation_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col, worst=True)
     # logger.info('Selecting {} random features.'.format(str(n_features)))
     # select_random_features_number(input_filepath, output_filepath, n_features)
     # logger.info('Selecting {}% random features.'.format(str(random_perc)))
