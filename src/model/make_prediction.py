@@ -61,7 +61,7 @@ def calculate_spearman(y_pred, x, y_true):
 def calculate_fscore(y_pred, x, y_true):
     true_win_lost = np.where(y_true > 50, '1', '0')
     pred_win_lost =  np.where(y_pred > 50, '1', '0')
-    fscore = f1_score(y_true=true_win_lost, y_pred=pred_win_lost, pos_label='1', labels=['1', '0'], average='weighted')
+    fscore = f1_score(y_true=true_win_lost, y_pred=pred_win_lost, labels=['1', '0'], average='macro')
     return fscore
 
 def calculate_accuracy(y_pred, x, y_true):
@@ -100,7 +100,8 @@ def calculate_rank_dist_center(y_pred, x, y_true, center_neighbor):
 
 def model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path,  output_path, fs_method, target_col, independent):
     metrics = create_eval_dict()
-    for fold_name in tqdm(folds_names, desc='Predicting folds:', position=0, leave=False):
+    for fold_name in tqdm(folds_names, desc='Predicting folds', position=0, leave=False):
+        print(' fold: {}'.format(fold_name))
         if independent == 'True':
             selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
         else:
@@ -114,13 +115,20 @@ def model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_
                 pass    
         
         model = load_model(join(models_path, fs_method, fold_name + '.sav'))
-        if model_name != 'GWR':
-            x_test = utils.filter_by_selected_features(x_test, selected_features)
-            y_pred = model.predict(x_test)
-        else:
+        
+        if model_name == 'GWR':
             coord = np.array(utils.get_geocoordinates(x_test))
             x_test = utils.filter_by_selected_features(x_test, selected_features)
             y_pred = model.predict(coord, x_test.values).predy.flatten()
+        elif model_name == 'CR':
+            geo_x = x_test['GEO_x'].mean()
+            geo_y = x_test['GEO_y'].mean()
+            x_test = utils.filter_by_selected_features(x_test, selected_features)
+            y_pred = model.predict(x_test, geo_x, geo_y)
+        else:
+            x_test = utils.filter_by_selected_features(x_test, selected_features)
+            y_pred = model.predict(x_test)
+       
 
         
         metrics['fold_name'].append(fold_name)
@@ -165,7 +173,5 @@ def run(model_name, folds_filepath, models_path, exp_filepath,  output_path, tar
     folds_names = [fold_name for fold_name in listdir(folds_filepath)]
     for fs_method in fs_methods:
         logger.info('Predicting using method: {}'.format(fs_method))
-        model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path, output_path, fs_method, target_col, independent) 
-          
-            
-        
+        model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path, output_path, fs_method, target_col, independent)     
+        exit()

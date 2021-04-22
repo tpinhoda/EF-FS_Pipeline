@@ -185,5 +185,4 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, meshblock_filepath
             x_test = utils.filter_by_selected_features(x_test, selected_features)
             generate_map_plot(fold_name, model, x_test, y_test, meshblock, who_won, index_col, target_col, candidate_vote_shares, center_candidate, pdf_pages)
         pdf_pages.close()
-        
     
