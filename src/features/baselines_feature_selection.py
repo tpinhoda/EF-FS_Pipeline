@@ -122,7 +122,7 @@ def sklearn_methods(data_path, results_path, desc_filepath, output_desc_filepath
             json.dump(json_features, fp, indent=4)
     
 
-def weka_methods(data_path, results_path, desc_filepath, output_desc_filepath, n_features, target_col, independent, methods=['cfs', 'rrelieff']):
+def weka_methods(data_path, results_path, desc_filepath, output_desc_filepath, n_features, target_col, independent, methods=['cfs']):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
     if independent:
@@ -188,18 +188,18 @@ def plot_desc_features(desc_filepath, output_filepath, features, method):
 def run(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col, independent=True):
     logger_name = 'FS Baselines'
     logger = logging.getLogger(logger_name)
-    logger.info('Selecting all features.')
-    select_all_features(input_filepath, output_filepath)
-    logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
+    #logger.info('Selecting all features.')
+    #select_all_features(input_filepath, output_filepath)
+    #logger.info('Selecting features based on weka merhods: [RReliefF, CFS].')
     n_features = weka_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col, independent)
-    logger.info('Selecting features based on correlation: [pearson, kendall, spearman].')
-    correlation_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
-    logger.info('Selecting features based on sklearn methods: [regression, mutual information].')
-    sklearn_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
-    logger.info('Selecting worst features sklearn.')
-    select_worst_case_sklearn(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
-    logger.info('Selecting worst features correlation.')
-    correlation_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col, worst=True)
+    #logger.info('Selecting features based on correlation: [pearson, kendall, spearman].')
+    #correlation_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
+    #logger.info('Selecting features based on sklearn methods: [regression, mutual information].')
+    #sklearn_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
+    #logger.info('Selecting worst features sklearn.')
+    #select_worst_case_sklearn(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col)
+    #logger.info('Selecting worst features correlation.')
+    #correlation_methods(input_filepath, output_filepath, desc_filepath, output_desc_filepath, n_features, target_col, worst=True)
     # logger.info('Selecting {} random features.'.format(str(n_features)))
     # select_random_features_number(input_filepath, output_filepath, n_features)
     # logger.info('Selecting {}% random features.'.format(str(random_perc)))

@@ -1,4 +1,5 @@
 import logging
+import re
 import scikit_posthocs as sp
 import pandas as pd
 import seaborn as sns
@@ -13,6 +14,18 @@ def generate_overall_results(path, file_results):
     df_mean_list = []
     for file in file_results:
         results = pd.read_csv(join(path, file))
+        results.set_index('fold_name', inplace=True)
+        try:
+            
+            results.loc['sergipe','fscore'] = results.loc['sergipe','accuracy']
+            results.loc['ceará','fscore'] = results.loc['ceará','accuracy']
+            results.loc['distrito federal','fscore'] = results.loc['distrito federal','accuracy']
+            results.loc['piauí','fscore'] = results.loc['piauí','accuracy']
+            results.loc['rondônia','fscore'] = results.loc['rondônia','accuracy']
+        
+        except KeyError:
+            pass
+        results.reset_index(inplace=True)
         results.drop('fold_name', axis=1, inplace=True)
         mean_results = results.mean()
         mean_results['method'] = file.split('.')[0]
@@ -90,7 +103,7 @@ def generate_bar_plots(overall_results, metrics, pdf_pages):
                             palette='Paired')
             
         for p in splot.patches:
-            splot.annotate(format(p.get_height(), '.2f'),
+            splot.annotate(format(p.get_height(), '.4f'),
                            (p.get_x() + p.get_width() / 2., p.get_height()),
                            ha='center', va='center',
                            xytext=(0, 9),
@@ -141,7 +154,7 @@ def generate_horizontal_bar_plots(overall_results, metrics, pdf_pages):
         
         for p in splot.patches:
             width = p.get_width()
-            plt.text(p.get_width()-p.get_width()*.1, p.get_y()+0.55*p.get_height(), '{:1.2f}'.format(width), ha='center', va='center', color='white')
+            plt.text(p.get_width()-p.get_width()*.1, p.get_y()+0.55*p.get_height(), '{:1.4f}'.format(width), ha='center', va='center', color='white')
         
         plt.tight_layout()
         plt.xlabel('Metric Values')

@@ -28,6 +28,8 @@ def save_model(model, path, filename):
 def train_model(model_name, folds_filepath, fold, model, features_selected, target_col, output_path, meshblock=[], index_col=None):
     x_train, y_train = utils.make_data(join(folds_filepath, fold), target_col, 'train.csv')
     if model_name == 'CR':
+        #geo_x = x_train[x_train['GLOBAL_capital'] == True]['GEO_x']
+        #geo_y = x_train[x_train['GLOBAL_capital'] == True]['GEO_y']
         geo_x = x_train['GEO_x']
         geo_y = x_train['GEO_y']
         context = x_train['GEO_Nome_UF']
@@ -68,7 +70,6 @@ def run(folds_filepath, exp_filepath, output_path, model_name, target_col, indep
             fs_method_output_path = utils.create_folder(output_path, fs_method.split('.')[0], logger_name)
             for fold in tqdm(folds_names, desc='Creating trained models by folds:', leave=False):
                 train_model(model_name, folds_filepath, fold, model, selected_features, target_col, fs_method_output_path)
-            exit()
     else:
         for fold in folds_names:
             fs_methods = [method for method in listdir(join(exp_filepath, 'features_selected', fold))]

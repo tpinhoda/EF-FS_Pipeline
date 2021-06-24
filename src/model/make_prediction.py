@@ -59,20 +59,20 @@ def calculate_spearman(y_pred, x, y_true):
     return ro
 
 def calculate_fscore(y_pred, x, y_true):
-    true_win_lost = np.where(y_true > 50, '1', '0')
-    pred_win_lost =  np.where(y_pred > 50, '1', '0')
+    true_win_lost = np.where(y_true > .50, '1', '0')
+    pred_win_lost =  np.where(y_pred > .50, '1', '0')
     fscore = f1_score(y_true=true_win_lost, y_pred=pred_win_lost, labels=['1', '0'], average='macro')
     return fscore
 
 def calculate_accuracy(y_pred, x, y_true):
-    true_win_lost = np.where(y_true > 50, 1, 0)
-    pred_win_lost =  np.where(y_pred > 50, 1, 0)   
+    true_win_lost = np.where(y_true > .5, 1, 0)
+    pred_win_lost =  np.where(y_pred > .5, 1, 0)   
     accuracy = accuracy_score(y_true=true_win_lost, y_pred=pred_win_lost)
     return accuracy
 
 def calculate_oneclass_metric(y_pred, x, y_true, label, metric):
-    true_win_lost = np.where(y_true > 50, 1, 0)
-    pred_win_lost =  np.where(y_pred > 50, 1, 0)
+    true_win_lost = np.where(y_true > .5, 1, 0)
+    pred_win_lost =  np.where(y_pred > .5, 1, 0)
     report = classification_report(true_win_lost, pred_win_lost, output_dict=True, labels=[1, 0])
     try:
         fscore = report[label][metric]
@@ -101,7 +101,6 @@ def calculate_rank_dist_center(y_pred, x, y_true, center_neighbor):
 def model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path,  output_path, fs_method, target_col, independent):
     metrics = create_eval_dict()
     for fold_name in tqdm(folds_names, desc='Predicting folds', position=0, leave=False):
-        print(' fold: {}'.format(fold_name))
         if independent == 'True':
             selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
         else:
@@ -124,7 +123,7 @@ def model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_
             geo_x = x_test['GEO_x'].mean()
             geo_y = x_test['GEO_y'].mean()
             x_test = utils.filter_by_selected_features(x_test, selected_features)
-            y_pred = model.predict(x_test, geo_x, geo_y)
+            y_pred = model.predict(x_test, geo_x, geo_y, fold_name)
         else:
             x_test = utils.filter_by_selected_features(x_test, selected_features)
             y_pred = model.predict(x_test)
@@ -173,5 +172,4 @@ def run(model_name, folds_filepath, models_path, exp_filepath,  output_path, tar
     folds_names = [fold_name for fold_name in listdir(folds_filepath)]
     for fs_method in fs_methods:
         logger.info('Predicting using method: {}'.format(fs_method))
-        model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path, output_path, fs_method, target_col, independent)     
-        exit()
+        model_predict(model_name, exp_filepath, folds_filepath, folds_names, models_path, output_path, fs_method, target_col, independent)

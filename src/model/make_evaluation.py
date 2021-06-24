@@ -14,13 +14,14 @@ def run(run_train, run_prediction, ds_folds):
     exp_filepath = join(exp_filepath, ds_folds)
     # Get data fold parameters
     type_folds = environ.get('TYPE_FOLDS')
+    geo_groups = environ.get('GEO_GROUP')
     target_col = environ.get('TARGET')
     n_features = environ.get('FILTERING_N_FEATURES')
     independent = environ.get('INDEPENDENT')
     # Get Spatial cross validation parameters
     scv_model_name = environ.get('MODEL_NAME')
     
-    exp_filepath = utils.get_fold_type_folder_path(type_folds, exp_filepath, logger_name)
+    exp_filepath = utils.get_type_fold_path(type_folds, exp_filepath, logger_name)
     if type_folds == 'CN':
         n_neighbors = environ.get('C_N_NEIGHBORS')
         filter_train = environ.get('FILTER_TRAIN')
@@ -31,6 +32,9 @@ def run(run_train, run_prediction, ds_folds):
             geo_name = utils.get_name_geo_group(group_CN, logger_name)
             exp_filepath= exp_filepath +'_grouped_{}'.format(geo_name)
         exp_filepath = join(exp_filepath, folder_name)
+    else:
+        exp_filepath = utils.get_geo_group_folder_path(geo_groups, exp_filepath, logger_name)
+        
 
     folds_filepath = join(exp_filepath, 'folds')
     if run_train == 'True':

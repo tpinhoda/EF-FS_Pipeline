@@ -55,19 +55,19 @@ def run(folds_filepath, models_path, exp_filepath, map_plots, target_col, index_
     logger.info('Generating Map Plots.')
     for fs_method in fs_methods:
         selected_features = utils.get_features_from_file(join(exp_filepath, 'features_selected', fs_method + '.json'))
-        #pdf_pages = PdfPages(join(map_plots, fs_method + '.pdf'))
-        plot_path = utils.create_folder(map_plots, fs_method, logger_name)
+        pdf_pages = PdfPages(join(map_plots, fs_method + '.pdf'))
+        #plot_path = utils.create_folder(map_plots, fs_method, logger_name)
         for fold_name in tqdm(folds_names, desc='Generating shap plots', leave=False):
             model = load_model(join(models_path, fs_method, fold_name  + '.sav'))
             x_test, y_test = make_data(join(folds_filepath, fold_name), target_col, 'test.csv')
-            center_neighbor = x_test['center_neighbor']
-            center = x_test.index[x_test['center_neighbor'] == 'center'].tolist()
-            if len(center) > 1:
-                x_test = x_test.iloc[0:-1,:]
+            #center_neighbor = x_test['center_neighbor']
+            #center = x_test.index[x_test['center_neighbor'] == 'center'].tolist()
+            #if len(center) > 1:
+            #    x_test = x_test.iloc[0:-1,:]
 
             x_test = utils.filter_by_selected_features(x_test, selected_features)
             
-            #generate_shap_plot(fold_name, model, x_test, pdf_pages)
-            single_shap_plot(fold_name, plot_path, model, center[0], x_test)
-        #pdf_pages.close()
+            generate_shap_plot(fold_name, model, x_test, pdf_pages)
+            #single_shap_plot(fold_name, plot_path, model, center[0], x_test)
+        pdf_pages.close()
     

@@ -8,6 +8,7 @@ from dotenv import find_dotenv, load_dotenv
 from src.utils import utils
 from src.data import generate_gg_folds as generate_geo_groups_folds 
 from src.data import generate_cn_folds as generate_changing_neighbors_folds
+from src.data import generate_cb_folds as generate_context_folds
 
 #generate_geo_groups_folds = __import__('1_generate_gg_folds')
 #generate_changing_neighbors_folds = __import__('2_generate_cn_folds')
@@ -32,6 +33,7 @@ def run(run_make_folds):
     filter_attribute = environ.get('FILTER_ATTRIBUTE_NAME')
     filter_value = environ.get('FILTER_ATTRIBUTE_VALUE')
     type_folds = environ.get('TYPE_FOLDS')
+    geo_group = environ.get('GEO_GROUP')
     n_neighbors = int(environ.get('C_N_NEIGHBORS'))
     center_candidate = environ.get('CENTER_CANDIDATE')
     filter_train = environ.get('FILTER_TRAIN')
@@ -59,21 +61,31 @@ def run(run_make_folds):
             generate_changing_neighbors_folds.run(input_filepath,
                                                   meshblock_filepath,
                                                   output_filepath,
-                                                  type_folds,
+                                                  geo_group,
                                                   queen_matrix_filepath,
                                                   n_neighbors,
                                                   center_candidate,
                                                   filter_train,
                                                   group_cn)
-        else:
+        elif type_folds == 'GG':
             generate_geo_groups_folds.run(input_filepath,
                                           meshblock_filepath,
                                           output_filepath,
-                                          type_folds,
+                                          geo_group,
                                           queen_matrix_filepath,
                                           filter_data,
                                           filter_attribute,
                                           filter_value)
+        elif type_folds == 'GC':
+            generate_context_folds.run(input_filepath,
+                                          meshblock_filepath,
+                                          output_filepath,
+                                          geo_group,
+                                          queen_matrix_filepath,
+                                          filter_data,
+                                          filter_attribute,
+                                          filter_value)
+        
     else:
         logger.warning('Not creating spatial folds.')
     return(dataset_fold_name)

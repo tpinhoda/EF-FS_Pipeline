@@ -43,7 +43,7 @@ def get_name_geo_group(group, logger_name):
         exit()
     return name
 
-def get_fold_type_folder_path(type_folds, root_filepath, logger_name):
+def get_geo_group_folder_path(type_folds, root_filepath, logger_name):
     logger = logging.getLogger(logger_name)
     if type_folds == 'R':
         root_filepath = join(root_filepath, 'Regiao')
@@ -57,11 +57,23 @@ def get_fold_type_folder_path(type_folds, root_filepath, logger_name):
         root_filepath = join(root_filepath, 'Distrito')
     elif type_folds == 'SD':
         root_filepath = join(root_filepath, 'Subdistrito')
-    elif type_folds == 'CN':
-        root_filepath = join(root_filepath, 'Changing_Neighborhood')
     else:
         root_filepath = None
         logger.error('Incorrect type fold option try: [R, S, ME, MI, D, SD, CN]')
+        exit()
+    return root_filepath
+
+def get_type_fold_path(type_folds, root_filepath, logger_name):
+    logger = logging.getLogger(logger_name)
+    if type_folds == 'GG':
+        root_filepath = join(root_filepath, 'Geographical Group')
+    elif type_folds == 'GC':
+        root_filepath = join(root_filepath, 'Geographical Context')
+    elif type_folds == 'CN':
+        root_filepath = join(root_filepath, 'Changing Neighborhood')
+    else:
+        root_filepath = None
+        logger.error('Incorrect type fold option try: [CN, GG, CG')
         exit()
     return root_filepath
 

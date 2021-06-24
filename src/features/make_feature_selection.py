@@ -24,11 +24,13 @@ def run(run_fs_baselines, ds_fold):
         # Get data fold parameters
         filter_data = environ.get('FILTER_DATA')
         type_folds = environ.get('TYPE_FOLDS')
+        geo_groups = environ.get('GEO_GROUP')
         # Get feature selection parameter
         target_col = environ.get('TARGET')
         n_features = int(environ.get('FILTERING_N_FEATURES'))
         independent = environ.get('INDEPENDENT')
-        output_filepath = utils.get_fold_type_folder_path(type_folds, output_filepath, logger_name)
+        output_filepath = utils.get_type_fold_path(type_folds, output_filepath, logger_name)
+      
         if filter_data == 'True':
             input_filepath = join(output_filepath, 'filtered_data.csv')
         if type_folds == 'CN':
@@ -45,8 +47,11 @@ def run(run_fs_baselines, ds_fold):
             output_filepath = join(output_filepath, folder_name)
             if filter_train == 'True':
                 input_filepath = join(output_filepath, 'filtered_data.csv')
+        else:
+              output_filepath = utils.get_geo_group_folder_path(geo_groups, output_filepath, logger_name)
         folds_filepath = join(output_filepath, 'folds')
         output_filepath = utils.create_folder(output_filepath, 'experiments', logger_name)
+        
         if n_features == -1:
             output_filepath = utils.create_folder(output_filepath, 'TG_{}_FN_CFS_IND_{}'.format(target_col, independent), logger_name)
         else:
@@ -64,10 +69,11 @@ def run(run_fs_baselines, ds_fold):
             logger.warning('Some warnings may appear.')
             jvm.start()
             for fold in tqdm(folds_names):
-                output_foldpath = utils.create_folder(output_filepath, fold, logger_name)
-                output_desc_foldpath = utils.create_folder(output_desc_filepath, fold, logger_name)
-                input_filepath = join(folds_filepath, fold, 'train.csv')
-                baselines.run(input_filepath, output_foldpath, desc_filepath, output_desc_foldpath, n_features, target_col, independent=False)
+                if fold not in ['test']:
+                    output_foldpath = utils.create_folder(output_filepath, fold, logger_name)
+                    output_desc_foldpath = utils.create_folder(output_desc_filepath, fold, logger_name)
+                    input_filepath = join(folds_filepath, fold, 'train.csv')
+                    baselines.run(input_filepath, output_foldpath, desc_filepath, output_desc_foldpath, n_features, target_col, independent=False)
             jvm.stop()
     else:   
         logger.warning('Not running feature selection baselines.')
